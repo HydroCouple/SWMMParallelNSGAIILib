@@ -149,9 +149,9 @@ double CalcRMS(const std::vector<std::pair<double, double>> & obs,
     for(size_t j = currentObs; j < obs.size() - 1; j++)
     {
       double obsDT1 = obs[j].first;
-      double obsDT2 = obs[j+1].second;
+      double obsDT2 = obs[j+1].first;
 
-      if(simDT >= obsDT1 && simDT < obsDT2)
+      if(simDT >= obsDT1 && simDT <= obsDT2)
       {
         double obsv1 = obs[j].second;
         double obsv2 = obs[j+1].second;
@@ -362,7 +362,7 @@ void SWMMParallelNSGAII(int gen, int indIndex, int nreal, double *xreal, int nbi
       }
       else if(args[3] == "VolError")
       {
-        RMS(args, obj[i-4],faceData);
+        VolumeError(args, obj[i-4],faceData);
       }
     }
 

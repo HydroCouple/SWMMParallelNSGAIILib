@@ -285,6 +285,9 @@ void CloseSwmmOutFile(IFaceData *faceData)
   }
 
   if(faceData)
+  {
     free(faceData);
+    faceData = NULL;
+  }
 }
 
