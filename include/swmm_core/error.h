@@ -10,6 +10,9 @@
 //
 //-----------------------------------------------------------------------------
 
+#ifndef ERROR_H
+#define ERROR_H
+
 enum  ErrorType {
 
   //... Runtime Errors
@@ -165,3 +168,5 @@ enum  ErrorType {
 char* error_getMsg(int i);
 int   error_getCode(int i);
 int   error_setInpError(int errcode, char* s);
+
+#endif

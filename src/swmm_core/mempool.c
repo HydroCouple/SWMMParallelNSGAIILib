@@ -18,7 +18,9 @@
 
 #include <stdlib.h>
 //#include <malloc.h>
+#include <stdlib.h>
 #include "mempool.h"
+#include "headers.h"
 
 /*
 **  ALLOC_BLOCK_SIZE - adjust this size to suit your installation - it
@@ -31,29 +33,29 @@
 **  alloc_hdr_t - Header for each block of memory.
 */
 
-typedef struct alloc_hdr_s
-{
-    struct alloc_hdr_s *next;   /* Next Block          */
-    char               *block,  /* Start of block      */
-                       *free,   /* Next free in block  */
-                       *end;    /* block + block size  */
-}  alloc_hdr_t;
+//typedef struct alloc_hdr_s
+//{
+//    struct alloc_hdr_s *next;   /* Next Block          */
+//    char               *block,  /* Start of block      */
+//                       *free,   /* Next free in block  */
+//                       *end;    /* block + block size  */
+//}  alloc_hdr_t;
+//
+///*
+//**  alloc_root_t - Header for the whole pool.
+//*/
+//
+//typedef struct alloc_root_s
+//{
+//    alloc_hdr_t *first,    /* First header in pool */
+//                *current;  /* Current header       */
+//}  alloc_root_t;
 
 /*
-**  alloc_root_t - Header for the whole pool.
+**  project->root - Pointer to the current pool.
 */
 
-typedef struct alloc_root_s
-{
-    alloc_hdr_t *first,    /* First header in pool */
-                *current;  /* Current header       */
-}  alloc_root_t;
-
-/*
-**  root - Pointer to the current pool.
-*/
-
-static alloc_root_t *root;
+//static alloc_root_t *project->root;
 
 
 /*
@@ -64,7 +66,7 @@ static alloc_root_t *root;
 
 static alloc_hdr_t *AllocHdr(void);
                 
-static alloc_hdr_t * AllocHdr()
+static alloc_hdr_t * AllocHdr(void)
 {
     alloc_hdr_t     *hdr;
     char            *block;
@@ -89,15 +91,15 @@ static alloc_hdr_t * AllocHdr()
 **  Returns pointer to the new pool.
 */
 
-alloc_handle_t * AllocInit()
+alloc_handle_t * AllocInit(Project* project)
 {
     alloc_handle_t *newpool;
 
-    root = (alloc_root_t *) malloc(sizeof(alloc_root_t));
-    if (root == NULL) return(NULL);
-    if ( (root->first = AllocHdr()) == NULL) return(NULL);
-    root->current = root->first;
-    newpool = (alloc_handle_t *) root;
+    project->root = (alloc_root_t *) malloc(sizeof(alloc_root_t));
+    if (project->root == NULL) return(NULL);
+    if ( (project->root->first = AllocHdr()) == NULL) return(NULL);
+    project->root->current = project->root->first;
+    newpool = (alloc_handle_t *) project->root;
     return(newpool);
 }
 
@@ -109,9 +111,9 @@ alloc_handle_t * AllocInit()
 **  memory from the current pool.
 */
 
-char * Alloc(long size)
+char * Alloc(Project* project, long size)
 {
-    alloc_hdr_t  *hdr = root->current;
+    alloc_hdr_t  *hdr = project->root->current;
     char         *ptr;
 
     /*
@@ -133,18 +135,18 @@ char * Alloc(long size)
         {
             /* re-use block */
             hdr->next->free = hdr->next->block;
-            root->current = hdr->next;
+            project->root->current = hdr->next;
         }
         else
         {
             /* extend the pool with a new block */
             if ( (hdr->next = AllocHdr()) == NULL) return(NULL);
-            root->current = hdr->next;
+            project->root->current = hdr->next;
         }
 
         /* set ptr to the first location in the next block */
-        ptr = root->current->free;
-        root->current->free += size;
+        ptr = project->root->current->free;
+        project->root->current->free += size;
     }
 
     /* Return pointer to allocated memory. */
@@ -159,10 +161,10 @@ char * Alloc(long size)
 **  Change the current pool.  Return the old pool.
 */
 
-alloc_handle_t * AllocSetPool(alloc_handle_t *newpool)
+alloc_handle_t * AllocSetPool(Project* project,alloc_handle_t *newpool)
 {
-    alloc_handle_t *old = (alloc_handle_t *) root;
-    root = (alloc_root_t *) newpool;
+    alloc_handle_t *old = (alloc_handle_t *) project->root;
+    project->root = (alloc_root_t *) newpool;
     return(old);
 }
 
@@ -174,10 +176,10 @@ alloc_handle_t * AllocSetPool(alloc_handle_t *newpool)
 **  so this is very fast.
 */
 
-void  AllocReset()
+void  AllocReset(Project* project)
 {
-    root->current = root->first;
-    root->current->free = root->current->block;
+    project->root->current = project->root->first;
+    project->root->current->free = project->root->current->block;
 }
 
 
@@ -188,10 +190,10 @@ void  AllocReset()
 **  Don't use where AllocReset() could be used.
 */
 
-void  AllocFreePool()
+void  AllocFreePool(Project* project)
 {
     alloc_hdr_t  *tmp,
-                 *hdr = root->first;
+                 *hdr = project->root->first;
 
     while (hdr != NULL)
     {
@@ -200,6 +202,6 @@ void  AllocFreePool()
         free((char *) hdr);
         hdr = tmp;
     }
-    free((char *) root);
-    root = NULL;
+    free((char *) project->root);
+    project->root = NULL;
 }

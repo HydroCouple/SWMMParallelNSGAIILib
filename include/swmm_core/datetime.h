@@ -4,7 +4,6 @@
 //   Project:  EPA SWMM5
 //   Version:  5.1
 //   Date:     03/20/14   (Build 5.1.001)
-//             08/01/16   (Build 5.1.011)
 //   Author:   L. Rossman
 //
 //   The DateTime type is used to store date and time values. It is
@@ -13,11 +12,15 @@
 //   The integral part of a DateTime value is the number of days that have
 //   passed since 12/31/1899. The fractional part of a DateTime value is the
 //   fraction of a 24 hour day that has elapsed.
-//
-//   Build 5.1.011
-//   - New getTimeStamp function added.
 //-----------------------------------------------------------------------------
 
+#ifndef DATETIME_H
+#define DATETIME_H
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 typedef double DateTime;
 
 #define Y_M_D 0
@@ -46,8 +49,6 @@ int  datetime_daysPerMonth(int year, int month);
 // Functions for converting a DateTime value to a string
 void datetime_dateToStr(DateTime date, char* s);
 void datetime_timeToStr(DateTime time, char* s);
-void datetime_getTimeStamp(int fmt, DateTime aDate, int stampSize,             //5.1.011
-                           char* timeStamp);                                   //5.1.011
 
 // Functions for converting a string date or time to a DateTime value
 int  datetime_findMonth(char* s);
@@ -61,3 +62,9 @@ void datetime_setDateFormat(int fmt);
 DateTime datetime_addSeconds(DateTime date1, double seconds);
 DateTime datetime_addDays(DateTime date1, DateTime date2);
 long     datetime_timeDiff(DateTime date1, DateTime date2);
+
+#ifdef __cplusplus
+}   // matches the linkage specification from above */
+#endif
+
+#endif

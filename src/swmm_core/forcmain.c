@@ -34,10 +34,10 @@ static double forcemain_getReynolds(double v, double hrad);
 
 //=============================================================================
 
-double forcemain_getEquivN(int j, int k)
+double forcemain_getEquivN(Project* project, int j, int k)
 //
 //  Input:   j = link index
-//           k = conduit index
+//           k = project->Conduit index
 //  Output:  returns an equivalent Manning's n for a force main
 //  Purpose: computes a Mannng's n that results in the same normal flow
 //           value for a force main flowing full under fully turbulent
@@ -45,23 +45,23 @@ double forcemain_getEquivN(int j, int k)
 //           flow equations.
 //
 {
-    TXsect xsect = Link[j].xsect;
+    TXsect xsect = project->Link[j].xsect;
     double f;
     double d = xsect.yFull;
-    switch ( ForceMainEqn )
+    switch ( project->ForceMainEqn )
     {
       case H_W:
-        return 1.067 / xsect.rBot * pow(d/Conduit[k].slope, 0.04);
+        return 1.067 / xsect.rBot * pow(d/project->Conduit[k].slope, 0.04);
       case D_W:
         f = forcemain_getFricFactor(xsect.rBot, d/4.0, 1.0e12);
         return sqrt(f/185.0) * pow(d, (1./6.));
     }
-    return Conduit[k].roughness;
+    return project->Conduit[k].roughness;
 }
 
 //=============================================================================
 
-double forcemain_getRoughFactor(int j, double lengthFactor)
+double forcemain_getRoughFactor(Project* project, int j, double lengthFactor)
 //
 //  Input:   j = link index
 //           lengthFactor = factor by which a pipe will be artifically lengthened
@@ -70,9 +70,9 @@ double forcemain_getRoughFactor(int j, double lengthFactor)
 //           any artificial lengthening the pipe may have received.
 //
 {
-    TXsect xsect = Link[j].xsect;
+    TXsect xsect = project->Link[j].xsect;
     double r;
-    switch ( ForceMainEqn )
+    switch ( project->ForceMainEqn )
     {
       case H_W:
         r = 1.318*xsect.rBot*pow(lengthFactor, 0.54);
@@ -85,7 +85,7 @@ double forcemain_getRoughFactor(int j, double lengthFactor)
 
 //=============================================================================
 
-double forcemain_getFricSlope(int j, double v, double hrad)
+double forcemain_getFricSlope(Project* project, int j, double v, double hrad)
 //
 //  Input:   j = link index
 //           v = flow velocity (ft/sec)
@@ -95,12 +95,12 @@ double forcemain_getFricSlope(int j, double v, double hrad)
 //           flow routing for a pressurized force main using either the
 //           Hazen-Williams or Darcy-Weisbach flow equations.
 //  Note:    the pipe's roughness factor was saved in xsect.sBot in
-//           conduit_validate() in LINK.C.
+//           project->Conduit_validate() in LINK.C.
 //
 {
     double re, f;
-    TXsect xsect = Link[j].xsect;
-    switch ( ForceMainEqn )
+    TXsect xsect = project->Link[j].xsect;
+    switch ( project->ForceMainEqn )
     {
       case H_W:
         return xsect.sBot * pow(v, 0.852) / pow(hrad, 1.1667);

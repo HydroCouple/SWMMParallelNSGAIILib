@@ -6,14 +6,24 @@
 //  The type alloc_handle_t provides an opaque reference to the
 //  alloc pool - only the alloc routines know its structure.
 //-----------------------------------------------------------------------------
+#ifndef MEMPOOL_H
+#define MEMPOOL_H
 
-typedef struct
+
+
+
+struct alloc_handle_t
 {
-   long  dummy;
-}  alloc_handle_t;
+	long  dummy;
+};
+typedef struct alloc_handle_t alloc_handle_t;
 
-alloc_handle_t *AllocInit(void);
-char           *Alloc(long);
-alloc_handle_t *AllocSetPool(alloc_handle_t *);
-void            AllocReset(void);
-void            AllocFreePool(void);
+typedef struct Project Project;
+
+alloc_handle_t *AllocInit(Project*);
+char           *Alloc(Project*,long);
+alloc_handle_t *AllocSetPool(Project*, alloc_handle_t *);
+void            AllocReset(Project*);
+void            AllocFreePool(Project*);
+
+#endif

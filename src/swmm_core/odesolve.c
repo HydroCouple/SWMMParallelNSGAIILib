@@ -34,11 +34,11 @@ double*  ak;        // derivatives at intermediate points
 
 
 // function that integrates over an error-controlled stepsize
-int rkqs(double* x, int n, double htry, double eps, double* hdid,
-         double* hnext, void (*derivs)(double, double*, double*));
+int rkqs(struct Project* project, double* x, int n, double htry, double eps, double* hdid,
+	double* hnext, void(*derivs)(struct Project*, double, double*, double*));
 
 // function that performs the Runge-Kutta integration step
-void rkck(double x, int n, double h, void (*derivs)(double, double*, double*));
+void rkck(struct Project* project, double x, int n, double h, void (*derivs)(struct Project*, double, double*, double*));
 
 
 //-----------------------------------------------------------------------------
@@ -81,8 +81,8 @@ void odesolve_close()
 }
 
 
-int odesolve_integrate(double ystart[], int n, double x1, double x2,
-      double eps, double h1, void (*derivs)(double, double*, double*))
+int odesolve_integrate(struct Project* project, double ystart[], int n, double x1, double x2,
+	double eps, double h1, void(*derivs)(struct Project*, double, double*, double*))
 //---------------------------------------------------------------
 //   Driver function for Runge-Kutta integration with adaptive
 //   stepsize control. Integrates starting n values in ystart[]
@@ -100,11 +100,11 @@ int odesolve_integrate(double ystart[], int n, double x1, double x2,
     for (i=0; i<n; i++) y[i] = ystart[i];
     for (nstp=1; nstp<=MAXSTP; nstp++)
     {
-        derivs(x,y,dydx);
+        derivs(project,x,y,dydx);
         for (i=0; i<n; i++)
             yscal[i] = fabs(y[i]) + fabs(dydx[i]*h) + TINY;
         if ((x+h-x2)*(x+h-x1) > 0.0) h = x2 - x;
-        errcode = rkqs(&x,n,h,eps,&hdid,&hnext,derivs);
+        errcode = rkqs(project,&x,n,h,eps,&hdid,&hnext,derivs);
         if (errcode) break;
         if ((x-x2)*(x2-x1) >= 0.0)
         {
@@ -118,8 +118,8 @@ int odesolve_integrate(double ystart[], int n, double x1, double x2,
 }
 
 
-int rkqs(double* x, int n, double htry, double eps, double* hdid,
-         double* hnext, void (*derivs)(double, double*, double*))
+int rkqs(struct Project* project, double* x, int n, double htry, double eps, double* hdid,
+	double* hnext, void(*derivs)(struct Project*, double, double*, double*))
 //---------------------------------------------------------------
 //   Fifth-order Runge-Kutta integration step with monitoring of
 //   local truncation error to assure accuracy and adjust stepsize.
@@ -136,7 +136,7 @@ int rkqs(double* x, int n, double htry, double eps, double* hdid,
     for (;;)
     {
         // --- take a Runge-Kutta-Cash-Karp step
-        rkck(xold, n, h, derivs);
+        rkck(project,xold, n, h, derivs);
 
         // --- compute scaled maximum error
         errmax = 0.0;
@@ -179,7 +179,7 @@ int rkqs(double* x, int n, double htry, double eps, double* hdid,
 }
 
 
-void rkck(double x, int n, double h, void (*derivs)(double, double*, double*))
+void rkck(struct Project* project, double x, int n, double h, void(*derivs)(struct Project*, double, double*, double*))
 //----------------------------------------------------------------------
 //   Uses the Runge-Kutta-Cash-Karp method to advance y[] at x
 //   over stepsize h.
@@ -203,24 +203,24 @@ void rkck(double x, int n, double h, void (*derivs)(double, double*, double*))
 
     for (i=0; i<n; i++)
         ytemp[i] = y[i] + b21*h*dydx[i];
-    derivs(x+a2*h,ytemp,ak2);
+    derivs(project,x+a2*h,ytemp,ak2);
 
     for (i=0; i<n; i++)
         ytemp[i] = y[i] + h*(b31*dydx[i]+b32*ak2[i]);
-    derivs(x+a3*h,ytemp,ak3);
+	derivs(project, x + a3*h, ytemp, ak3);
 
     for (i=0; i<n; i++)
         ytemp[i] = y[i] + h*(b41*dydx[i]+b42*ak2[i] + b43*ak3[i]);
-    derivs(x+a4*h,ytemp,ak4);
+	derivs(project, x + a4*h, ytemp, ak4);
 
     for (i=0; i<n; i++)
         ytemp[i] = y[i] + h*(b51*dydx[i]+b52*ak2[i] + b53*ak3[i] + b54*ak4[i]);
-    derivs(x+a5*h,ytemp,ak5);
+	derivs(project, x + a5*h, ytemp, ak5);
 
     for (i=0; i<n; i++)
         ytemp[i] = y[i] + h*(b61*dydx[i]+b62*ak2[i] + b63*ak3[i] + b64*ak4[i]
                    + b65*ak5[i]);
-    derivs(x+a6*h,ytemp,ak6);
+	derivs(project, x + a6*h, ytemp, ak6);
 
     for (i=0; i<n; i++)
         ytemp[i] = y[i] + h*(c1*dydx[i] + c3*ak3[i] + c4*ak4[i] + c6*ak6[i]);

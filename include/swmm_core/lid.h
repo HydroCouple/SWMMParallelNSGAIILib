@@ -5,8 +5,6 @@
 //   Version: 5.1
 //   Date:    03/20/14   (Build 5.1.001)
 //            03/19/15   (Build 5.1.008)
-//            08/01/16   (Build 5.1.011)
-//            03/14/17   (Build 5.1.012)
 //   Author:  L. Rossman (US EPA)
 //
 //   Public interface for LID functions.
@@ -15,13 +13,6 @@
 //   - Support added for Roof Disconnection LID.
 //   - Support added for separate routing of LID drain flows.
 //   - Detailed LID reporting modified.
-//
-//   Build 5.1.011:
-//   - Water depth replaces moisture content for LID's pavement layer. 
-//   - Arguments for lidproc_saveResults() modified.
-//
-//   Build 5.1.012:
-//   - Redefined meaning of wasDry in TLidRptFile structure.
 //
 //-----------------------------------------------------------------------------
 
@@ -32,6 +23,8 @@
 #include <stdio.h>
 #include <string.h>
 #include "infil.h"
+
+struct Project;
 
 //-----------------------------------------------------------------------------
 //  Enumerations
@@ -145,7 +138,7 @@ typedef struct
 typedef struct
 {
     FILE*     file;               // file pointer
-    int       wasDry;             // number of successive dry periods          //(5.1.012)
+    int       wasDry;             // true if LID was dry                       //(5.1.008)
     char      results[256];       // results for current time period           //(5.1.008)
 }   TLidRptFile;
 
@@ -166,7 +159,7 @@ typedef struct
 
     TGrnAmpt soilInfil;      // infil. object for biocell soil layer 
     double   surfaceDepth;   // depth of ponded water on surface layer (ft)
-    double   paveDepth;      // depth of water in porous pavement layer        //(5.1.011)
+    double   paveMoisture;   // moisture content of porous pavement layer      //(5.1.008)
     double   soilMoisture;   // moisture content of biocell soil layer
     double   storageDepth;   // depth of water in storage layer (ft)
 
@@ -182,42 +175,42 @@ typedef struct
 //-----------------------------------------------------------------------------
 //   LID Methods
 //-----------------------------------------------------------------------------
-void     lid_create(int lidCount, int subcatchCount);
-void     lid_delete(void);
+void     lid_create(struct Project* project, int lidCount, int subcatchCount);
+void     lid_delete(struct Project* project);
 
-int      lid_readProcParams(char* tok[], int ntoks);
-int      lid_readGroupParams(char* tok[], int ntoks);
+int      lid_readProcParams(struct Project* project, char* tok[], int ntoks);
+int      lid_readGroupParams(struct Project* project, char* tok[], int ntoks);
 
-void     lid_validate(void);
-void     lid_initState(void);
-void     lid_setOldGroupState(int subcatch);                                   //(5.1.008)
+void     lid_validate(struct Project* project);
+void     lid_initState(struct Project* project);
+void     lid_setOldGroupState(struct Project* project, int subcatch);                                   //(5.1.008)
 
-double   lid_getPervArea(int subcatch);
-double   lid_getFlowToPerv(int subcatch);
-double   lid_getDrainFlow(int subcatch, int timePeriod);                       //(5.1.008)
-double   lid_getStoredVolume(int subcatch);
+double   lid_getPervArea(struct Project* project, int subcatch);
+double   lid_getFlowToPerv(struct Project* project, int subcatch);
+double   lid_getDrainFlow(struct Project* project, int subcatch, int timePeriod);                       //(5.1.008)
+double   lid_getStoredVolume(struct Project* project, int subcatch);
 
 //double   lid_getSurfaceDepth(int subcatch);                                  //(5.1.008)
 //double   lid_getDepthOnPavement(int subcatch, double impervDepth);           //(5.1.008)
 
-void     lid_addDrainLoads(int subcatch, double c[], double tStep);            //(5.1.008)
-void     lid_addDrainRunon(int subcatch);                                      //(5.1.008)
-void     lid_addDrainInflow(int subcatch, double f);                           //(5.1.008)
+void     lid_addDrainLoads(struct Project* project, int subcatch, double c[], double tStep);            //(5.1.008)
+void     lid_addDrainRunon(struct Project* project, int subcatch);                                      //(5.1.008)
+void     lid_addDrainInflow(struct Project* project, int subcatch, double f);                           //(5.1.008)
 
-void     lid_getRunoff(int subcatch, double tStep);                            //(5.1.008)
+void     lid_getRunoff(struct Project* project, int subcatch, double tStep);                            //(5.1.008)
 
-void     lid_writeSummary(void);
-void     lid_writeWaterBalance(void);
+void     lid_writeSummary(struct Project* project);
+void     lid_writeWaterBalance(struct Project* project);
 
 //-----------------------------------------------------------------------------
 
 void     lidproc_initWaterBalance(TLidUnit *lidUnit, double initVol);
 
-double   lidproc_getOutflow(TLidUnit* lidUnit, TLidProc* lidProc,
+double   lidproc_getOutflow(struct Project* project, TLidUnit* lidUnit, TLidProc* lidProc,
          double inflow, double evap, double infil, double maxInfil,            //(5.1.008)
          double tStep, double* lidEvap, double* lidInfil, double* lidDrain);   //(5.1.008)
 
-void     lidproc_saveResults(TLidUnit* lidUnit, double ucfRainfall,            //(5.1.011)
-         double ucfRainDepth);
+void     lidproc_saveResults(struct Project* project, TLidUnit* lidUnit, TLidProc* lidProc,             //(5.1.008)
+         double ucfRainfall, double ucfRainDepth);
 
 #endif

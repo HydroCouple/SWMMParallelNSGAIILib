@@ -46,24 +46,24 @@ enum SnowKeywords {SNOW_PLOWABLE, SNOW_IMPERV, SNOW_PERV, SNOW_REMOVAL};
 //-----------------------------------------------------------------------------
 //  Local functions
 //-----------------------------------------------------------------------------
-static void   setMeltParams(int i, int k, double x[]);
-static double getRainmelt(double rainfall);
-static double getArealDepletion(TSnowpack* snowpack, int i, double snowfall,
+static void   setMeltParams(Project* project, int i, int k, double x[]);
+static double getRainmelt(Project* project, double rainfall);
+static double getArealDepletion(Project* project, TSnowpack* snowpack, int i, double snowfall,
               double tStep);
-static double getArealSnowCover(int i, double awesi);
-static double meltSnowpack(TSnowpack* snowpack, int i, double rmelt, double asc,
+static double getArealSnowCover(Project* project, int i, double awesi);
+static double meltSnowpack(Project* project, TSnowpack* snowpack, int i, double rmelt, double asc,
               double snowfall, double tStep);
 static double reduceColdContent(TSnowpack* snowpack, int i, double smelt,
               double ccFactor);
-static double routeSnowmelt(TSnowpack* snowpack, int i, double smelt, double asc,
+static double routeSnowmelt(Project* project, TSnowpack* snowpack, int i, double smelt, double asc,
               double rainfall, double tStep);
-static void   updateColdContent(TSnowpack* snowpack, int i, double asc,
+static void   updateColdContent(Project* project, TSnowpack* snowpack, int i, double asc,
               double snowfall, double tStep);
 
 
 //=============================================================================
 
-int snow_readMeltParams(char* tok[], int ntoks)
+int snow_readMeltParams(Project* project, char* tok[], int ntoks)
 //
 //  Input:   tok[] = array of string tokens
 //           ntoks = number of tokens
@@ -80,10 +80,10 @@ int snow_readMeltParams(char* tok[], int ntoks)
     if ( ntoks < 8 ) return error_setInpError(ERR_ITEMS, "");
 
     // --- save snow melt parameter set name if not already done so
-    j = project_findObject(SNOWMELT, tok[0]);
+	j = project_findObject(project, SNOWMELT, tok[0]);
     if ( j < 0 ) return error_setInpError(ERR_NAME, tok[0]);
-    if ( Snowmelt[j].ID == NULL )
-        Snowmelt[j].ID = project_findID(SNOWMELT, tok[0]);
+    if ( project->Snowmelt[j].ID == NULL )
+		project->Snowmelt[j].ID = project_findID(project, SNOWMELT, tok[0]);
 
     // --- identify data keyword
     k = findmatch(tok[1], SnowmeltWords);
@@ -108,20 +108,20 @@ int snow_readMeltParams(char* tok[], int ntoks)
         x[6] = -1.0;
         if ( ntoks >= 9 )
         {
-            m = project_findObject(SUBCATCH, tok[8]);
+			m = project_findObject(project, SUBCATCH, tok[8]);
             if ( m < 0 ) return error_setInpError(ERR_NAME, tok[8]);
             x[6] = m;
         }
     }
 
     // --- save snow melt parameters
-    setMeltParams(j, k, x);
+	setMeltParams(project, j, k, x);
     return 0;
 }
 
 //=============================================================================
 
-int snow_createSnowpack(int j, int k)
+int snow_createSnowpack(Project* project, int j, int k)
 //
 //  Input:   j = subcatchment index
 //           k = snow melt parameter set index
@@ -132,14 +132,14 @@ int snow_createSnowpack(int j, int k)
     TSnowpack* snowpack;
     snowpack = (TSnowpack *) malloc(sizeof(TSnowpack));
     if ( !snowpack ) return FALSE;
-    Subcatch[j].snowpack = snowpack;
+    project->Subcatch[j].snowpack = snowpack;
     snowpack->snowmeltIndex = k;
     return TRUE;
 }
 
 //=============================================================================
 
-void snow_initSnowpack(int j)
+void snow_initSnowpack(Project* project, int j)
 //
 //  Input:   j = subcatchment index
 //  Output:  none
@@ -153,25 +153,25 @@ void snow_initSnowpack(int j)
     TSnowpack* snowpack;               // ptr. to snow pack object
 
     // --- get ptr. to subcatchment's snow pack object
-    snowpack = Subcatch[j].snowpack;
+    snowpack = project->Subcatch[j].snowpack;
     if ( snowpack == NULL ) return;
 
     // --- identify index of snow melt data set used by snow pack
-    k = Subcatch[j].snowpack->snowmeltIndex;
+    k = project->Subcatch[j].snowpack->snowmeltIndex;
 
     // --- find fractional area of each snow surface
-    f = Snowmelt[k].snn;
-    snowpack->fArea[SNOW_PLOWABLE] = f * Subcatch[j].fracImperv;
-    snowpack->fArea[SNOW_IMPERV]   = (1.0 - f) * Subcatch[j].fracImperv;
-    snowpack->fArea[SNOW_PERV]     = 1.0 - Subcatch[j].fracImperv;
+    f = project->Snowmelt[k].snn;
+    snowpack->fArea[SNOW_PLOWABLE] = f * project->Subcatch[j].fracImperv;
+    snowpack->fArea[SNOW_IMPERV]   = (1.0 - f) * project->Subcatch[j].fracImperv;
+    snowpack->fArea[SNOW_PERV]     = 1.0 - project->Subcatch[j].fracImperv;
 
     // --- initialize state of snow pack on each snow surface
     for (i=SNOW_PLOWABLE; i<=SNOW_PERV; i++)
     {
         if ( snowpack->fArea[i] > 0.0 )
         {
-            snowpack->wsnow[i] = Snowmelt[k].wsnow[i];
-            snowpack->fw[i]    = Snowmelt[k].fwnow[i];
+            snowpack->wsnow[i] = project->Snowmelt[k].wsnow[i];
+            snowpack->fw[i]    = project->Snowmelt[k].fwnow[i];
         }
         else
         {
@@ -179,16 +179,16 @@ void snow_initSnowpack(int j)
             snowpack->fw[i]    = 0.0;
         }
         snowpack->coldc[i] = 0.0;
-        snowpack->ati[i]   = Snowmelt[k].tbase[i];
+        snowpack->ati[i]   = project->Snowmelt[k].tbase[i];
         snowpack->awe[i]   = 1.0;
         snowDepth += snowpack->wsnow[i] * snowpack->fArea[i];
     }
-    Subcatch[j].newSnowDepth = snowDepth;
+    project->Subcatch[j].newSnowDepth = snowDepth;
 }
 
 //=============================================================================
 
-void  snow_initSnowmelt(int j)
+void  snow_initSnowmelt(Project* project, int j)
 //
 //  Input:   j = snowmelt parameter set index
 //  Output:  none
@@ -198,23 +198,23 @@ void  snow_initSnowmelt(int j)
     int i, k;
     for (i=0; i<3; i++)
     {
-        Snowmelt[j].snn       = 0.0;
-        Snowmelt[j].si[i]     = 0.0;
-        Snowmelt[j].dhmin[i]  = 0.0;
-        Snowmelt[j].dhmax[i]  = 0.0;
-        Snowmelt[j].tbase[i]  = 0.0;
-        Snowmelt[j].fwfrac[i] = 0.0;
-        Snowmelt[j].wsnow[i]  = 0.0;
-        Snowmelt[j].fwnow[i]  = 0.0;
-        Snowmelt[j].weplow    = 1.0e6;
-        for (k=0; k<5; k++) Snowmelt[j].sfrac[k] = 0.0;
-        Snowmelt[j].toSubcatch   = -1;
+        project->Snowmelt[j].snn       = 0.0;
+        project->Snowmelt[j].si[i]     = 0.0;
+        project->Snowmelt[j].dhmin[i]  = 0.0;
+        project->Snowmelt[j].dhmax[i]  = 0.0;
+        project->Snowmelt[j].tbase[i]  = 0.0;
+        project->Snowmelt[j].fwfrac[i] = 0.0;
+        project->Snowmelt[j].wsnow[i]  = 0.0;
+        project->Snowmelt[j].fwnow[i]  = 0.0;
+        project->Snowmelt[j].weplow    = 1.0e6;
+        for (k=0; k<5; k++) project->Snowmelt[j].sfrac[k] = 0.0;
+        project->Snowmelt[j].toSubcatch   = -1;
     }
 }
 
 //=============================================================================
 
-void snow_validateSnowmelt(int j)
+void snow_validateSnowmelt(Project* project, int j)
 //
 //  Input:   j = snowmelt parameter set index
 //  Output:  none
@@ -228,25 +228,25 @@ void snow_validateSnowmelt(int j)
     for ( k = SNOW_PLOWABLE; k <= SNOW_PERV; k++ )
     {
         // --- check melt coeffs.
-        if ( Snowmelt[j].dhmin[k] > Snowmelt[j].dhmax[k] ) err = TRUE; 
+        if ( project->Snowmelt[j].dhmin[k] > project->Snowmelt[j].dhmax[k] ) err = TRUE; 
 
         // --- check free water fraction
-        if ( Snowmelt[j].fwfrac[k] < 0.0 ||
-             Snowmelt[j].fwfrac[k] > 1.0) err = TRUE;
+        if ( project->Snowmelt[j].fwfrac[k] < 0.0 ||
+             project->Snowmelt[j].fwfrac[k] > 1.0) err = TRUE;
     }
 
     // --- check fraction of imperv. area plowable
-    if ( Snowmelt[j].snn < 0.0 || Snowmelt[j].snn > 1.0 ) err = TRUE;
+    if ( project->Snowmelt[j].snn < 0.0 || project->Snowmelt[j].snn > 1.0 ) err = TRUE;
 
     // --- check that removal fractions sum <= 1.0
-    for ( k=0; k<5; k++ ) sum += Snowmelt[j].sfrac[k];
+    for ( k=0; k<5; k++ ) sum += project->Snowmelt[j].sfrac[k];
     if ( sum > 1.01 ) err = TRUE;
-    if ( err ) report_writeErrorMsg(ERR_SNOWPACK_PARAMS, Snowmelt[j].ID);
+	if (err) report_writeErrorMsg(project, ERR_SNOWPACK_PARAMS, project->Snowmelt[j].ID);
 }
 
 //=============================================================================
 
-void snow_getState(int i, int j, double x[])
+void snow_getState(Project* project, int i, int j, double x[])
 //
 //  Input:   i = subcatchment index
 //           j = snow pack sub-area index
@@ -254,7 +254,7 @@ void snow_getState(int i, int j, double x[])
 //  Purpose: retrieves the current state of a snow pack object.
 //
 {
-    TSnowpack* snowpack = Subcatch[i].snowpack;
+    TSnowpack* snowpack = project->Subcatch[i].snowpack;
     if ( snowpack == NULL ) return;
     x[0] = snowpack->wsnow[j];
     x[1] = snowpack->fw[j];
@@ -265,7 +265,7 @@ void snow_getState(int i, int j, double x[])
 
 //=============================================================================
 
-void snow_setState(int i, int j, double x[])
+void snow_setState(Project* project, int i, int j, double x[])
 //
 //  Input:   i = subcatchment index
 //           j = snow pack sub-area index
@@ -274,7 +274,7 @@ void snow_setState(int i, int j, double x[])
 //  Purpose: sets the current state of a snow pack object.
 //
 {
-    TSnowpack* snowpack = Subcatch[i].snowpack;
+    TSnowpack* snowpack = project->Subcatch[i].snowpack;
     if ( snowpack == NULL ) return;
     snowpack->wsnow[j] = x[0];
     snowpack->fw[j]    = x[1];
@@ -285,7 +285,7 @@ void snow_setState(int i, int j, double x[])
 
 //=============================================================================
 
-void setMeltParams(int j, int k, double x[])
+void setMeltParams(Project* project, int j, int k, double x[])
 //
 //  Input:   j = snowmelt parameter set index
 //           k = data category index
@@ -300,43 +300,43 @@ void setMeltParams(int j, int k, double x[])
     if ( k >= SNOW_PLOWABLE && k <= SNOW_PERV )
     {
         // --- min/max melt coeffs.
-        Snowmelt[j].dhmin[k]     = x[0] * UCF(TEMPERATURE) / UCF(RAINFALL);
-        Snowmelt[j].dhmax[k]     = x[1] * UCF(TEMPERATURE) / UCF(RAINFALL); 
+		project->Snowmelt[j].dhmin[k] = x[0] * UCF(project, TEMPERATURE) / UCF(project, RAINFALL);
+		project->Snowmelt[j].dhmax[k] = x[1] * UCF(project, TEMPERATURE) / UCF(project, RAINFALL);
 
         // --- base melt temp (deg F)
-        Snowmelt[j].tbase[k]     = x[2];
-        if ( UnitSystem == SI )
-            Snowmelt[j].tbase[k] =  (9./5.) * Snowmelt[j].tbase[k] + 32.0;
+        project->Snowmelt[j].tbase[k]     = x[2];
+        if ( project->UnitSystem == SI )
+            project->Snowmelt[j].tbase[k] =  (9./5.) * project->Snowmelt[j].tbase[k] + 32.0;
 
         // --- free water fractions
-        Snowmelt[j].fwfrac[k]    = x[3];
+        project->Snowmelt[j].fwfrac[k]    = x[3];
 
         // --- initial snow depth & free water depth
-        Snowmelt[j].wsnow[k]     = x[4] / UCF(RAINDEPTH);
+        project->Snowmelt[j].wsnow[k]     = x[4] / UCF(project, RAINDEPTH);
         x[5] = MIN(x[5], (x[3]*x[4]));
-        Snowmelt[j].fwnow[k]     = x[5] / UCF(RAINDEPTH);
+		project->Snowmelt[j].fwnow[k] = x[5] / UCF(project, RAINDEPTH);
 
         // --- fraction of impervious area that is plowable
-        if ( k == SNOW_PLOWABLE ) Snowmelt[j].snn = x[6];
+        if ( k == SNOW_PLOWABLE ) project->Snowmelt[j].snn = x[6];
 
         // --- min. depth for 100% areal coverage on remaining
         //     impervious area or total pervious area
-        else Snowmelt[j].si[k] = x[6] / UCF(RAINDEPTH);
+		else project->Snowmelt[j].si[k] = x[6] / UCF(project, RAINDEPTH);
     }
 
     // --- removal parameters
     else if ( k == SNOW_REMOVAL )
     {
-        Snowmelt[j].weplow = x[0] / UCF(RAINDEPTH);
-        for (i=0; i<=4; i++) Snowmelt[j].sfrac[i] = x[i+1];
-        if ( x[6] >= 0.0 ) Snowmelt[j].toSubcatch = (int)(x[6] + 0.01);
-        else               Snowmelt[j].toSubcatch = -1;
+		project->Snowmelt[j].weplow = x[0] / UCF(project, RAINDEPTH);
+        for (i=0; i<=4; i++) project->Snowmelt[j].sfrac[i] = x[i+1];
+        if ( x[6] >= 0.0 ) project->Snowmelt[j].toSubcatch = (int)(x[6] + 0.01);
+        else               project->Snowmelt[j].toSubcatch = -1;
     }
 }
 
 //=============================================================================
 
-void snow_setMeltCoeffs(int j, double s)
+void snow_setMeltCoeffs(Project* project, int j, double s)
 //
 //  Input:   j = snowmelt parameter set index
 //           s = snow season of year
@@ -348,14 +348,14 @@ void snow_setMeltCoeffs(int j, double s)
 
     for (k=SNOW_PLOWABLE; k<=SNOW_PERV; k++)
     {
-        Snowmelt[j].dhm[k] = 0.5 * (Snowmelt[j].dhmax[k] * (1.0 + s)
-                             + Snowmelt[j].dhmin[k] * (1.0 - s));
+        project->Snowmelt[j].dhm[k] = 0.5 * (project->Snowmelt[j].dhmax[k] * (1.0 + s)
+                             + project->Snowmelt[j].dhmin[k] * (1.0 - s));
     }
 }
 
 //=============================================================================
 
-void snow_plowSnow(int j, double tStep)
+void snow_plowSnow(Project* project, int j, double tStep)
 //
 //  Input:   j     = subcatchment index
 //           tStep = time step (sec)
@@ -373,11 +373,11 @@ void snow_plowSnow(int j, double tStep)
     double sfracTotal;                 // total fraction of snow moved
     TSnowpack* snowpack;               // ptr. to snow pack object
 
-    snowpack = Subcatch[j].snowpack;
+    snowpack = project->Subcatch[j].snowpack;
     if ( !snowpack ) return;
 
     // --- see if there's any snowfall
-    gage_getPrecip(Subcatch[j].gage, &rainfall, &snowfall);
+    gage_getPrecip(project,project->Subcatch[j].gage, &rainfall, &snowfall);
 
     // --- add snowfall to snow pack
     for (i=SNOW_PLOWABLE; i<=SNOW_PERV; i++)
@@ -393,23 +393,23 @@ void snow_plowSnow(int j, double tStep)
     if ( snowpack->fArea[SNOW_PLOWABLE] > 0.0 )
     {
         k = snowpack->snowmeltIndex;
-        if ( snowpack->wsnow[SNOW_PLOWABLE] >= Snowmelt[k].weplow ) 
+        if ( snowpack->wsnow[SNOW_PLOWABLE] >= project->Snowmelt[k].weplow ) 
         {
             // --- excess snow to be reomoved
             exc = snowpack->wsnow[SNOW_PLOWABLE];
 
             // --- plow out of system
-            f = snowpack->fArea[SNOW_PLOWABLE] * Subcatch[j].area;
-            Snow.removed += Snowmelt[k].sfrac[0] * exc * f;
-            sfracTotal = Snowmelt[k].sfrac[0];
+            f = snowpack->fArea[SNOW_PLOWABLE] * project->Subcatch[j].area;
+            project->Snow.removed += project->Snowmelt[k].sfrac[0] * exc * f;
+            sfracTotal = project->Snowmelt[k].sfrac[0];
 
             // --- plow onto non-plowable impervious area
             if ( snowpack->fArea[SNOW_IMPERV] > 0.0 )
             {
                 f = snowpack->fArea[SNOW_PLOWABLE] /
                     snowpack->fArea[SNOW_IMPERV];
-                snowpack->wsnow[SNOW_IMPERV] += Snowmelt[k].sfrac[1] * exc * f;
-                sfracTotal += Snowmelt[k].sfrac[1];
+                snowpack->wsnow[SNOW_IMPERV] += project->Snowmelt[k].sfrac[1] * exc * f;
+                sfracTotal += project->Snowmelt[k].sfrac[1];
             }
 
             // --- plow onto pervious area
@@ -417,29 +417,29 @@ void snow_plowSnow(int j, double tStep)
             {
                 f = snowpack->fArea[SNOW_PLOWABLE] /
                     snowpack->fArea[SNOW_PERV];
-                snowpack->wsnow[SNOW_PERV] += Snowmelt[k].sfrac[2] * exc * f;
-                sfracTotal += Snowmelt[k].sfrac[2];
+                snowpack->wsnow[SNOW_PERV] += project->Snowmelt[k].sfrac[2] * exc * f;
+                sfracTotal += project->Snowmelt[k].sfrac[2];
             }
 
             // --- convert to immediate melt
-            snowpack->imelt[SNOW_PLOWABLE] = Snowmelt[k].sfrac[3] * exc / tStep;
-            sfracTotal += Snowmelt[k].sfrac[3];
+            snowpack->imelt[SNOW_PLOWABLE] = project->Snowmelt[k].sfrac[3] * exc / tStep;
+            sfracTotal += project->Snowmelt[k].sfrac[3];
 
             // --- send to another subcatchment
-            if ( Snowmelt[k].sfrac[4] > 0.0 )
+            if ( project->Snowmelt[k].sfrac[4] > 0.0 )
             {
-                m = Snowmelt[k].toSubcatch;
-                if ( Subcatch[m].snowpack )
+                m = project->Snowmelt[k].toSubcatch;
+                if ( project->Subcatch[m].snowpack )
                 {
-                    f = Subcatch[m].snowpack->fArea[SNOW_PERV];
+                    f = project->Subcatch[m].snowpack->fArea[SNOW_PERV];
                 } 
                 else f = 0.0; 
                 if ( f > 0.0 )
                 {
                     f = snowpack->fArea[SNOW_PLOWABLE] / f;
-                    Subcatch[m].snowpack->wsnow[SNOW_PERV] +=
-                        Snowmelt[k].sfrac[4] * exc * f;
-                    sfracTotal += Snowmelt[k].sfrac[4];
+                    project->Subcatch[m].snowpack->wsnow[SNOW_PERV] +=
+                        project->Snowmelt[k].sfrac[4] * exc * f;
+                    sfracTotal += project->Snowmelt[k].sfrac[4];
                 }
             }
 
@@ -452,7 +452,7 @@ void snow_plowSnow(int j, double tStep)
 
 //=============================================================================
 
-double snow_getSnowMelt(int j, double rainfall, double snowfall, double tStep,
+double snow_getSnowMelt(Project* project, int j, double rainfall, double snowfall, double tStep,
                         double netPrecip[])
 //
 //  Input:   j = subcatchment index
@@ -474,10 +474,10 @@ double snow_getSnowMelt(int j, double rainfall, double snowfall, double tStep,
     TSnowpack* snowpack;               // ptr. to snow pack object
 
     // --- get ptr. to subcatchment's snowpack
-    snowpack = Subcatch[j].snowpack;
+    snowpack = project->Subcatch[j].snowpack;
 
     // --- compute snowmelt over entire subcatchment when rain falling
-    rmelt = getRainmelt(rainfall);
+    rmelt = getRainmelt(project,rainfall);
 
     // --- compute snow melt from each type of subarea
     for (i=SNOW_PLOWABLE; i<=SNOW_PERV; i++)
@@ -498,9 +498,9 @@ double snow_getSnowMelt(int j, double rainfall, double snowfall, double tStep,
         //     and route it through pack
         else
         {
-            asc   = getArealDepletion(snowpack, i, snowfall, tStep);
-            smelt = meltSnowpack(snowpack, i, rmelt, asc, snowfall, tStep);
-            smelt = routeSnowmelt(snowpack, i, smelt, asc, rainfall, tStep);
+			asc = getArealDepletion(project, snowpack, i, snowfall, tStep);
+			smelt = meltSnowpack(project, snowpack, i, rmelt, asc, snowfall, tStep);
+			smelt = routeSnowmelt(project, snowpack, i, smelt, asc, rainfall, tStep);
         }
 
 ////  Following section revised for release 5.1.008.  ////                     //(5.1.008)
@@ -515,12 +515,12 @@ double snow_getSnowMelt(int j, double rainfall, double snowfall, double tStep,
     }
 
     // --- combine netPrecip on plowable & non-plowable imperv. areas
-    if ( Subcatch[j].fracImperv > 0.0 )
+    if ( project->Subcatch[j].fracImperv > 0.0 )
     {
         impervPrecip =
             (netPrecip[SNOW_PLOWABLE] * snowpack->fArea[SNOW_PLOWABLE] +
              netPrecip[SNOW_IMPERV] * snowpack->fArea[SNOW_IMPERV]) /
-             Subcatch[j].fracImperv;
+             project->Subcatch[j].fracImperv;
         netPrecip[IMPERV0] = impervPrecip;
         netPrecip[IMPERV1] = impervPrecip;
     }
@@ -529,7 +529,7 @@ double snow_getSnowMelt(int j, double rainfall, double snowfall, double tStep,
 
 //=============================================================================
 
-double snow_getSnowCover(int j)
+double snow_getSnowCover(Project* project, int j)
 //
 //  Input:   j = subcatchment index
 //  Output:  returns volume of snow cover (ft3)
@@ -540,19 +540,19 @@ double snow_getSnowCover(int j)
     double  snowCover = 0.0;           // snow cover volume (ft3)
     TSnowpack* snowpack;               // ptr. to snowpack object
 
-    snowpack = Subcatch[j].snowpack;
+    snowpack = project->Subcatch[j].snowpack;
     if ( !snowpack ) return 0.0;
     for (i=SNOW_PLOWABLE; i<=SNOW_PERV; i++)
     {
         snowCover += (snowpack->wsnow[i] + snowpack->fw[i]) * 
                       snowpack->fArea[i];
     }
-    return snowCover * Subcatch[j].area;
+    return snowCover * project->Subcatch[j].area;
 }
 
 //=============================================================================
 
-double getArealDepletion(TSnowpack* snowpack, int i, double snowfall, double tStep)
+double getArealDepletion(Project* project, TSnowpack* snowpack, int i, double snowfall, double tStep)
 //
 //  Input:   snowpack = ptr. to snow pack object
 //           i = snow sub-area index
@@ -573,7 +573,7 @@ double getArealDepletion(TSnowpack* snowpack, int i, double snowfall, double tSt
     // --- plowable sub-area not subject to areal depletion
     if ( i == SNOW_PLOWABLE ) return 1.0;
     k = snowpack->snowmeltIndex;
-    si = Snowmelt[k].si[i];
+    si = project->Snowmelt[k].si[i];
 
     // --- no depletion if depth zero or above SI
     if ( si == 0.0 || snowpack->wsnow[i] >= si )
@@ -592,7 +592,7 @@ double getArealDepletion(TSnowpack* snowpack, int i, double snowfall, double tSt
     {
         awe = (snowpack->wsnow[i] - snowfall*tStep) / si;
         awe = MAX(awe, 0.0);
-        sba = getArealSnowCover(i, awe);
+		sba = getArealSnowCover(project, i, awe);
         sbws = awe + (0.75*snowfall*tStep) / si;
         sbws = MIN(sbws, 1.0);
         snowpack->awe[i] = awe;
@@ -613,7 +613,7 @@ double getArealDepletion(TSnowpack* snowpack, int i, double snowfall, double tSt
         if ( awesi < snowpack->awe[i] )
         {
             snowpack->awe[i] = 1.0;
-            asc = getArealSnowCover(i, awesi);
+			asc = getArealSnowCover(project, i, awesi);
         }
         
         // --- relative snow depth is above end of new snow ADC
@@ -633,14 +633,14 @@ double getArealDepletion(TSnowpack* snowpack, int i, double snowfall, double tSt
 
 //=============================================================================
 
-double getArealSnowCover(int i, double awesi)
+double getArealSnowCover(Project* project, int i, double awesi)
 //
 //  Input:   i = snow sub-area index
 //           awesi = snow depth relative to depth at 100% snow cover
 //  Output:  returns fraction of sub-area with snow cover
 //  Purpose: finds x-value on areal depletion curve (ADC) for given y-value.
 //
-//  Note:    Areal depletion curves are associated with a project's Snow
+//  Note:    Areal depletion curves are associated with a project's project->Snow
 //           data structure. They plot relative snow depth (awesi)
 //           as a function of snow covererd area fraction (asc) in 10 equal
 //           awesi increments between 0 and 1.0.
@@ -661,9 +661,9 @@ double getArealSnowCover(int i, double awesi)
     m = (int)(awesi*10.0 + 0.00001);
 
     // --- get asc values for either end of interval
-    asc1 = Snow.adc[k][m];
+    asc1 = project->Snow.adc[k][m];
     if ( m >= 9) asc2 = 1.0;
-    else asc2 = Snow.adc[k][m+1];
+    else asc2 = project->Snow.adc[k][m+1];
 
     // --- return with interpolated asc value
     return asc1 + (asc2 - asc1) / 0.1 * (awesi - 0.1*(float)m);
@@ -671,7 +671,7 @@ double getArealSnowCover(int i, double awesi)
 
 //=============================================================================
 
-double meltSnowpack(TSnowpack* snowpack, int i, double rmelt, double asc,
+double meltSnowpack(Project* project, TSnowpack* snowpack, int i, double rmelt, double asc,
                     double snowfall, double tStep)
 //
 //  Input:   snowpack = ptr. to snow pack object
@@ -693,15 +693,15 @@ double meltSnowpack(TSnowpack* snowpack, int i, double rmelt, double asc,
     if ( rmelt > 0.0 ) smelt = rmelt;
 
     // --- else if air temp. >= base melt temp. then use degree-day eqn.
-    else if ( Temp.ta >= Snowmelt[k].tbase[i] )
+    else if ( project->Temp.ta >= project->Snowmelt[k].tbase[i] )
     {
-         smelt = Snowmelt[k].dhm[i] * (Temp.ta - Snowmelt[k].tbase[i]);
+         smelt = project->Snowmelt[k].dhm[i] * (project->Temp.ta - project->Snowmelt[k].tbase[i]);
     }
 
     // --- otherwise alter cold content and return 0
     else
     {
-        updateColdContent(snowpack, i, asc, snowfall, tStep);
+		updateColdContent(project, snowpack, i, asc, snowfall, tStep);
         return 0.0;
     }
 
@@ -709,15 +709,15 @@ double meltSnowpack(TSnowpack* snowpack, int i, double rmelt, double asc,
     smelt *= asc;                                                              //(5.1.008)
 
     // --- reduce cold content of melting pack
-    ccFactor = tStep * Snow.rnm * asc;
+    ccFactor = tStep * project->Snow.rnm * asc;
     smelt = reduceColdContent(snowpack, i, smelt, ccFactor);
-    snowpack->ati[i] = Snowmelt[k].tbase[i];
+    snowpack->ati[i] = project->Snowmelt[k].tbase[i];
     return smelt;
 }
 
 //=============================================================================
 
-double getRainmelt(double rainfall)
+double getRainmelt(Project* project, double rainfall)
 //
 //  Input:   rainfall = rainfall rate (ft/sec)
 //  Output:  returns snow melt rate (ft/sec)
@@ -731,10 +731,10 @@ double getRainmelt(double rainfall)
     rainfall = rainfall * 43200.0;     // convert rain to in/hr
     if ( rainfall > 0.02 )
     {
-        uadj = 0.006 * Wind.ws;
-        t1 = Temp.ta - 32.0;
-        t2 = 7.5 * Temp.gamma * uadj;
-        t3 = 8.5 * uadj * (Temp.ea - 0.18);
+        uadj = 0.006 * project->Wind.ws;
+        t1 = project->Temp.ta - 32.0;
+        t2 = 7.5 * project->Temp.gamma * uadj;
+        t3 = 8.5 * uadj * (project->Temp.ea - 0.18);
         smelt =  t1 * (0.001167 + t2 +  0.007 * rainfall) + t3;
         return smelt / 43200.0;
     }
@@ -743,7 +743,7 @@ double getRainmelt(double rainfall)
 
 //=============================================================================
 
-void updateColdContent(TSnowpack* snowpack, int i, double asc, double snowfall,
+void updateColdContent(Project* project, TSnowpack* snowpack, int i, double asc, double snowfall,
                        double tStep)
 //
 //  Input:   snowpack = ptr. to snow pack object
@@ -766,27 +766,27 @@ void updateColdContent(TSnowpack* snowpack, int i, double asc, double snowfall,
     cc = snowpack->coldc[i];
 
     // --- if snowing, ATI = snow (air) temperature
-    if ( snowfall * 43200.0 > 0.02) ati = Temp.ta;
+    if ( snowfall * 43200.0 > 0.02) ati = project->Temp.ta;
 	else
 	{
 	    // convert ATI weighting factor from 6-hr to tStep time basis
-	    tipm = 1.0 - pow(1.0 - Snow.tipm, tStep / (6.0*3600.0));
+	    tipm = 1.0 - pow(1.0 - project->Snow.tipm, tStep / (6.0*3600.0));
 		
 		// update ATI
-		ati += tipm * (Temp.ta - ati);
+		ati += tipm * (project->Temp.ta - ati);
 	}
 
     // --- ATI cannot exceed snow melt base temperature
     k = snowpack->snowmeltIndex;
-    ati = MIN(ati, Snowmelt[k].tbase[i]);
+    ati = MIN(ati, project->Snowmelt[k].tbase[i]);
 
     // --- update cold content
-    cc += Snow.rnm * Snowmelt[k].dhm[i] * (ati - Temp.ta) * tStep * asc;
+    cc += project->Snow.rnm * project->Snowmelt[k].dhm[i] * (ati - project->Temp.ta) * tStep * asc;
     cc = MAX(cc, 0.0);
 
     // --- maximum cold content based on assumed specific heat of snow
     //     of 0.007 in. water equiv. per deg. F
-    ccMax = snowpack->wsnow[i] * 0.007 / 12.0 * (Snowmelt[k].tbase[i] - ati);
+    ccMax = snowpack->wsnow[i] * 0.007 / 12.0 * (project->Snowmelt[k].tbase[i] - ati);
     cc = MIN(cc, ccMax);
 
     // --- assign updated values to snowpack
@@ -825,7 +825,7 @@ double reduceColdContent(TSnowpack* snowpack, int i, double smelt, double ccFact
 
 //=============================================================================
 
-double routeSnowmelt(TSnowpack* snowpack, int i, double smelt, double asc,
+double routeSnowmelt(Project* project, TSnowpack* snowpack, int i, double smelt, double asc,
                      double rainfall, double tStep)
 //
 //  Input:   snowpack = ptr. to snowpack object
@@ -855,7 +855,7 @@ double routeSnowmelt(TSnowpack* snowpack, int i, double smelt, double asc,
     snowpack->fw[i] += vmelt + rainfall * tStep * asc;                         //(5.1.008) 
 
     // --- excess free water becomes liquid melt that leaves the pack 
-    vmelt = snowpack->fw[i] - Snowmelt[k].fwfrac[i] * snowpack->wsnow[i];
+    vmelt = snowpack->fw[i] - project->Snowmelt[k].fwfrac[i] * snowpack->wsnow[i];
     vmelt = MAX(vmelt, 0.0);
 
     // --- reduce free water by liquid melt volume and return liquid melt rate

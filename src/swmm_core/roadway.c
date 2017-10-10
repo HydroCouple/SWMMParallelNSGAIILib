@@ -4,7 +4,6 @@
 //   Project:  EPA SWMM5
 //   Version:  5.1
 //   Date:     08/05/15   (Build 5.1.010)
-//             03/14/17   (Build 5.1.012)
 //   Author:   L. Rossman
 //
 //   Roadway Weir module for SWMM5
@@ -16,8 +15,6 @@
 //   weir has the same upstream node but with an offset equal to the height
 //   of the roadway.
 //
-//   Build 5.1.012:
-//   - Entries in discharge coeff. table for gravel roadways corrected.
 //-----------------------------------------------------------------------------
 #define _CRT_SECURE_NO_DEPRECATE
 
@@ -43,7 +40,7 @@ static const double Cr_Low_Paved[4][2] = {
 static const int N_Cr_Low_Gravel = 8;
 static const double Cr_Low_Gravel[8][2] = {
     {0.0, 2.5}, {0.5, 2.7},  {1.0, 2.8}, {1.5, 2.9}, {2.0, 2.98},
-    {2.5, 3.02}, {3.0, 3.03}, {4.0, 3.05} };                                   //(5.1.012)
+    {2.5, 3.2}, {3.0, 3.03}, {4.0, 3.05} };
 
 // Discharge Coefficients for (head / road width) > 0.15
 static const int N_Cr_High_Paved = 2;
@@ -77,7 +74,7 @@ static double getY(double x, const double table[][2], const int n);
 
 //=============================================================================
 
-double roadway_getInflow(int j,          // link index
+double roadway_getInflow(Project* project, int j,          // link index
                          double dir,     // flow direction (+1 or -1)
                          double hRoad,   // road elev. (ft)
                          double h1,      // upstream head (ft)
@@ -95,14 +92,14 @@ double roadway_getInflow(int j,          // link index
            dqdh = 0.0;       // derivative of flow w.r.t. head (ft2/sec)
 
     // --- get road width & surface type
-    if ( Link[j].type != WEIR ) return 0.0;
-    k = Link[j].subIndex;
-    roadWidth = Weir[k].roadWidth;
-    roadSurf = Weir[k].roadSurface;
+    if ( project->Link[j].type != WEIR ) return 0.0;
+    k = project->Link[j].subIndex;
+    roadWidth = project->Weir[k].roadWidth;
+    roadSurf = project->Weir[k].roadSurface;
 
     // --- user-supplied discharge coeff.
-    cD = Weir[k].cDisch1;
-    if ( UnitSystem == SI ) cD = cD / 0.552;
+    cD = project->Weir[k].cDisch1;
+    if ( project->UnitSystem == SI ) cD = cD / 0.552;
 
     // --- check if there's enough info to use a variable cD value
     useVariableCd = FALSE;
@@ -117,7 +114,7 @@ double roadway_getInflow(int j,          // link index
         if ( useVariableCd ) cD = getCd(hWr, ht, roadWidth, roadSurf);
 
         // --- use user-supplied weir length
-        length = Link[j].xsect.wMax;
+        length = project->Link[j].xsect.wMax;
 
         // --- weir eqn. for discharge across roadway
         q = cD * length * pow(hWr, 1.5);
@@ -125,13 +122,13 @@ double roadway_getInflow(int j,          // link index
     }
 
     // --- assign output values
-    Link[j].dqdh = dqdh;
-    Link[j].newDepth = MAX(h1 - hRoad, 0.0);
-    Link[j].flowClass = SUBCRITICAL;
+    project->Link[j].dqdh = dqdh;
+    project->Link[j].newDepth = MAX(h1 - hRoad, 0.0);
+    project->Link[j].flowClass = SUBCRITICAL;
     if ( hRoad > h2 )
     {
-        if ( dir == 1.0 ) Link[j].flowClass = DN_CRITICAL;
-        else              Link[j].flowClass = UP_CRITICAL;
+        if ( dir == 1.0 ) project->Link[j].flowClass = DN_CRITICAL;
+        else              project->Link[j].flowClass = UP_CRITICAL;
     }
     return dir * q;
 }

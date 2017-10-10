@@ -18,23 +18,23 @@
 //-----------------------------------------------------------------------------
 enum AdjListType {UNDIRECTED, DIRECTED};    // type of nodal adjacency list
 
-//-----------------------------------------------------------------------------
-//  Shared variables
-//-----------------------------------------------------------------------------
-static int* InDegree;                  // number of incoming links to each node
-static int* StartPos;                  // start of a node's outlinks in AdjList
-static int* AdjList;                   // list of outlink indexes for each node
-static int* Stack;                     // array of nodes "reached" during sorting
-static int  First;                     // position of first node in stack
-static int  Last;                      // position of last node added to stack
-
-static char* Examined;                 // TRUE if node included in spanning tree
-static char* InTree;                   // state of each link in spanning tree:
-                                       // 0 = unexamined,
-                                       // 1 = in spanning tree,
-                                       // 2 = chord of spanning tree
-static int*  LoopLinks;                // list of links which forms a loop
-static int   LoopLinksLast;            // number of links in a loop
+////-----------------------------------------------------------------------------
+////  Shared variables
+////-----------------------------------------------------------------------------
+//static int* project->InDegree;                  // number of incoming links to each node
+//static int* project->StartPos;                  // start of a node's outlinks in project->AdjList
+//static int* project->AdjList;                   // list of outlink indexes for each node
+//static int* project->Stack;                     // array of nodes "reached" during sorting
+//static int  project->First;                     // position of first node in stack
+//static int  project->Last;                      // position of last node added to stack
+//
+//static char* project->Examined;                 // TRUE if node included in spanning tree
+//static char* project->InTree;                   // state of each link in spanning tree:
+//                                       // 0 = unexamined,
+//                                       // 1 = in spanning tree,
+//                                       // 2 = chord of spanning tree
+//static int*  project->LoopLinks;                // list of links which forms a loop
+//static int   project->LoopLinksLast;            // number of links in a loop
 
 //-----------------------------------------------------------------------------
 //  External functions (declared in funcs.h)   
@@ -44,17 +44,17 @@ static int   LoopLinksLast;            // number of links in a loop
 //-----------------------------------------------------------------------------
 //  Local functions
 //-----------------------------------------------------------------------------
-static void createAdjList(int listType);
-static void adjustAdjList(void);
-static int  topoSort(int sortedLinks[]);
-static void findCycles(void);
-static void findSpanningTree(int startNode);
-static void evalLoop(int startLink);
-static int  traceLoop(int i1, int i2, int k);
-static void checkDummyLinks(void);
+static void createAdjList(Project* project, int listType);
+static void adjustAdjList(Project* project);
+static int  topoSort(Project* project, int sortedLinks[]);
+static void findCycles(Project* project);
+static void findSpanningTree(Project* project, int startNode);
+static void evalLoop(Project* project, int startLink);
+static int  traceLoop(Project* project, int i1, int i2, int k);
+static void checkDummyLinks(Project* project);
 //=============================================================================
 
-void toposort_sortLinks(int sortedLinks[])
+void toposort_sortLinks(Project* project, int sortedLinks[])
 //
 //  Input:   none
 //  Output:  sortedLinks = array of link indexes in sorted order
@@ -64,79 +64,79 @@ void toposort_sortLinks(int sortedLinks[])
     int i, n = 0;
 
     // --- no need to sort links for Dyn. Wave routing
-    for ( i=0; i<Nobjects[LINK]; i++) sortedLinks[i] = i;
-    if ( RouteModel == DW )
+    for ( i=0; i<project->Nobjects[LINK]; i++) sortedLinks[i] = i;
+    if ( project->RouteModel == DW )
     {
 
         // --- check for nodes with both incoming and outgoing
         //     dummy links (creates ambiguous ordering)
-        checkDummyLinks();
-        if ( ErrorCode ) return;
+        checkDummyLinks(project);
+        if ( project->ErrorCode ) return;
 
         // --- find number of outflow links for each node
-        for ( i=0; i<Nobjects[NODE]; i++ ) Node[i].degree = 0;
-        for ( i=0; i<Nobjects[LINK]; i++ )
+        for ( i=0; i<project->Nobjects[NODE]; i++ ) project->Node[i].degree = 0;
+        for ( i=0; i<project->Nobjects[LINK]; i++ )
         {
             // --- if upstream node is an outfall, then increment outflow
             //     count for downstream node, otherwise increment count
             //     for upstream node
-            n = Link[i].node1;
-            if ( Link[i].direction < 0 ) n = Link[i].node2;
-            if ( Node[n].type == OUTFALL )
+            n = project->Link[i].node1;
+            if ( project->Link[i].direction < 0 ) n = project->Link[i].node2;
+            if ( project->Node[n].type == OUTFALL )
             {
-                if ( Link[i].direction < 0 ) n = Link[i].node1;
-                else n = Link[i].node2;
-                Node[n].degree++;
+                if ( project->Link[i].direction < 0 ) n = project->Link[i].node1;
+                else n = project->Link[i].node2;
+                project->Node[n].degree++;
             }
-            else Node[n].degree++;
+            else project->Node[n].degree++;
         }
         return;
     }
 
     // --- allocate arrays used for topo sorting
-    if ( ErrorCode ) return;
-    InDegree = (int *) calloc(Nobjects[NODE], sizeof(int));
-    StartPos = (int *) calloc(Nobjects[NODE], sizeof(int));
-    AdjList  = (int *) calloc(Nobjects[LINK], sizeof(int));
-    Stack    = (int *) calloc(Nobjects[NODE], sizeof(int));
-    if ( InDegree == NULL || StartPos == NULL ||
-         AdjList == NULL || Stack == NULL )
+    if ( project->ErrorCode ) return;
+    project->InDegree = (int *) calloc(project->Nobjects[NODE], sizeof(int));
+    project->StartPos = (int *) calloc(project->Nobjects[NODE], sizeof(int));
+    project->AdjList  = (int *) calloc(project->Nobjects[LINK], sizeof(int));
+    project->Stack    = (int *) calloc(project->Nobjects[NODE], sizeof(int));
+    if ( project->InDegree == NULL || project->StartPos == NULL ||
+         project->AdjList == NULL || project->Stack == NULL )
     {
-        report_writeErrorMsg(ERR_MEMORY, "");
+        report_writeErrorMsg(project,ERR_MEMORY, "");
     }
     else
     {
         // --- create a directed adjacency list of links leaving each node
-        createAdjList(DIRECTED);
+		createAdjList(project, DIRECTED);
 
         // --- adjust adjacency list for DIVIDER nodes
-        adjustAdjList();
+		adjustAdjList(project);
 
         // --- find number of links entering each node
-        for (i = 0; i < Nobjects[NODE]; i++) InDegree[i] = 0;
-        for (i = 0; i < Nobjects[LINK]; i++) InDegree[ Link[i].node2 ]++;
+        for (i = 0; i < project->Nobjects[NODE]; i++) project->InDegree[i] = 0;
+        for (i = 0; i < project->Nobjects[LINK]; i++) project->InDegree[ project->Link[i].node2 ]++;
 
         // --- topo sort the links
-        n = topoSort(sortedLinks);
+		n = topoSort(project, sortedLinks);
     }   
 
     // --- free allocated memory
-    FREE(InDegree);
-    FREE(StartPos);
-    FREE(AdjList);
-    FREE(Stack);
+    FREE(project->InDegree);
+    FREE(project->StartPos);
+    FREE(project->AdjList);
+    FREE(project->Stack);
 
     // --- check that all links are included in SortedLinks
-    if ( !ErrorCode &&  n != Nobjects[LINK] )
+    if ( !project->ErrorCode &&  n != project->Nobjects[LINK] )
     {
-        report_writeErrorMsg(ERR_LOOP, "");
-        findCycles();
+        report_writeErrorMsg(project,ERR_LOOP, "");
+        findCycles(project);
     }
 }
 
 //=============================================================================
 
-void createAdjList(int listType)
+void createAdjList(Project* project, int listType)
 //
 //  Input:   lsitType = DIRECTED or UNDIRECTED
 //  Output:  none
@@ -148,46 +148,46 @@ void createAdjList(int listType)
     // --- determine degree of each node
     //     (for DIRECTED list only count link at its upstream node;
     //      for UNDIRECTED list count link at both end nodes)
-    for (i = 0; i < Nobjects[NODE]; i++) Node[i].degree = 0;
-    for (j = 0; j < Nobjects[LINK]; j++)
+    for (i = 0; i < project->Nobjects[NODE]; i++) project->Node[i].degree = 0;
+    for (j = 0; j < project->Nobjects[LINK]; j++)
     {
-        Node[ Link[j].node1 ].degree++;
-        if ( listType == UNDIRECTED ) Node[ Link[j].node2 ].degree++;
+        project->Node[ project->Link[j].node1 ].degree++;
+        if ( listType == UNDIRECTED ) project->Node[ project->Link[j].node2 ].degree++;
     }
 
     // --- determine start position of each node in the adjacency list
-    //     (the adjacency list, AdjList, is one long vector containing
+    //     (the adjacency list, project->AdjList, is one long vector containing
     //      the individual node lists one after the other)
-    StartPos[0] = 0;
-    for (i = 0; i < Nobjects[NODE]-1; i++)
+    project->StartPos[0] = 0;
+    for (i = 0; i < project->Nobjects[NODE]-1; i++)
     {
-        StartPos[i+1] = StartPos[i] + Node[i].degree;
-        Node[i].degree = 0;
+        project->StartPos[i+1] = project->StartPos[i] + project->Node[i].degree;
+        project->Node[i].degree = 0;
     }
-    Node[Nobjects[NODE]-1].degree = 0;
+    project->Node[project->Nobjects[NODE]-1].degree = 0;
 
     // --- traverse the list of links once more,
     //     adding each link's index to the proper 
     //     position in the adjacency list
-    for (j = 0; j < Nobjects[LINK]; j++)
+    for (j = 0; j < project->Nobjects[LINK]; j++)
     {
-        i = Link[j].node1;
-        k = StartPos[i] + Node[i].degree;
-        AdjList[k] = j;
-        Node[i].degree++;
+        i = project->Link[j].node1;
+        k = project->StartPos[i] + project->Node[i].degree;
+        project->AdjList[k] = j;
+        project->Node[i].degree++;
         if ( listType == UNDIRECTED )
         {
-            i = Link[j].node2;
-            k = StartPos[i] + Node[i].degree;
-            AdjList[k] = j;
-            Node[i].degree++;
+            i = project->Link[j].node2;
+            k = project->StartPos[i] + project->Node[i].degree;
+            project->AdjList[k] = j;
+            project->Node[i].degree++;
         }
     }
 }
 
 //=============================================================================
 
-void adjustAdjList()
+void adjustAdjList(Project* project)
 //
 //  Input:   none
 //  Output:  none
@@ -198,28 +198,28 @@ void adjustAdjList()
     int i, j, k, m;
 
     // --- check each node
-    for (i=0; i<Nobjects[NODE]; i++)
+    for (i=0; i<project->Nobjects[NODE]; i++)
     {
         // --- skip nodes that are not Dividers
-        if ( Node[i].type != DIVIDER ) continue;
-        if ( Node[i].degree != 2 ) continue;
+        if ( project->Node[i].type != DIVIDER ) continue;
+        if ( project->Node[i].degree != 2 ) continue;
 
         // --- switch position of outgoing links at the node if the
         //     diversion link appears first in the adjacency list
-        k = Node[i].subIndex;
-        m = StartPos[i];
-        j = AdjList[m];
-        if ( j == Divider[k].link )
+        k = project->Node[i].subIndex;
+        m = project->StartPos[i];
+        j = project->AdjList[m];
+        if ( j == project->Divider[k].link )
         {
-            AdjList[m] = AdjList[m+1];
-            AdjList[m+1] = j;
+            project->AdjList[m] = project->AdjList[m+1];
+            project->AdjList[m+1] = j;
         }
     }
 }
 
 //=============================================================================
 
-int topoSort(int sortedLinks[])
+int topoSort(Project* project, int sortedLinks[])
 //
 //  Input:   none
 //  Output:  sortedLinks = array of sorted link indexes,
@@ -231,55 +231,55 @@ int topoSort(int sortedLinks[])
     int i1, i2, k1, k2;
 
     // --- initialize a stack which contains nodes with zero in-degree
-    First = 0;
-    Last = -1;
-    for (i = 0; i < Nobjects[NODE]; i++)
+    project->First = 0;
+    project->Last = -1;
+    for (i = 0; i < project->Nobjects[NODE]; i++)
     {
-        if ( InDegree[i] == 0 )
+        if ( project->InDegree[i] == 0 )
         {
-            Last++;
-            Stack[Last] = i;
+            project->Last++;
+            project->Stack[project->Last] = i;
         }
     }
 
     // --- traverse the stack, adding each node's outgoing link indexes
     //     to the SortedLinks array in the order processed
     n = 0;
-    while ( First <= Last )
+    while ( project->First <= project->Last )
     {
         // --- determine range of adjacency list indexes belonging to 
         //     first node remaining on the stack
-        i1 = Stack[First];
-        k1 = StartPos[i1];
-        k2 = k1 + Node[i1].degree;
+        i1 = project->Stack[project->First];
+        k1 = project->StartPos[i1];
+        k2 = k1 + project->Node[i1].degree;
 
         // --- for each outgoing link from first node on stack
         for (k = k1; k < k2; k++)
         {
             // --- add link index to current position in SortedLinks
-            j = AdjList[k];
+            j = project->AdjList[k];
             sortedLinks[n] = j;
             n++;
 
             // --- reduce in-degree of link's downstream node
-            i2 = Link[j].node2;
-            InDegree[i2]--;
+            i2 = project->Link[j].node2;
+            project->InDegree[i2]--;
 
             // --- add downstream node to stack if its in-degree is zero
-            if ( InDegree[i2] == 0 )
+            if ( project->InDegree[i2] == 0 )
             {
-                Last++;
-                Stack[Last] = i2;
+                project->Last++;
+                project->Stack[project->Last] = i2;
             }  
         }
-        First++;
+        project->First++;
     }
     return n;
 }
 
 //=============================================================================
 
-void  findCycles()
+void  findCycles(Project* project)
 //
 //  Input:   none
 //  Output:  none
@@ -290,42 +290,42 @@ void  findCycles()
     int i;
 
     // --- allocate arrays
-    AdjList  = (int *) calloc(2*Nobjects[LINK], sizeof(int));
-    StartPos = (int *) calloc(Nobjects[NODE], sizeof(int));
-    Stack    = (int *) calloc(Nobjects[NODE], sizeof(int));
-    Examined = (char *) calloc(Nobjects[NODE], sizeof(char));
-    InTree   = (char *) calloc(Nobjects[LINK], sizeof(char));
-    LoopLinks = (int *) calloc(Nobjects[LINK], sizeof(int));
-    if ( StartPos && AdjList && Stack && Examined && InTree && LoopLinks )
+    project->AdjList  = (int *) calloc(2*project->Nobjects[LINK], sizeof(int));
+    project->StartPos = (int *) calloc(project->Nobjects[NODE], sizeof(int));
+    project->Stack    = (int *) calloc(project->Nobjects[NODE], sizeof(int));
+    project->Examined = (char *) calloc(project->Nobjects[NODE], sizeof(char));
+    project->InTree   = (char *) calloc(project->Nobjects[LINK], sizeof(char));
+    project->LoopLinks = (int *) calloc(project->Nobjects[LINK], sizeof(int));
+    if ( project->StartPos && project->AdjList && project->Stack && project->Examined && project->InTree && project->LoopLinks )
     {
         // --- create an undirected adjacency list for the nodes
-        createAdjList(UNDIRECTED);
+        createAdjList(project,UNDIRECTED);
 
         // --- set to empty the list of nodes examined and the list
         //     of links in the spanning tree
-        for ( i=0; i<Nobjects[NODE]; i++) Examined[i] = 0;
-        for ( i=0; i<Nobjects[LINK]; i++) InTree[i] = 0;
+        for ( i=0; i<project->Nobjects[NODE]; i++) project->Examined[i] = 0;
+        for ( i=0; i<project->Nobjects[LINK]; i++) project->InTree[i] = 0;
 
         // --- find a spanning tree for each unexamined node
         //     (cycles are identified as tree is constructed)
-        for ( i=0; i<Nobjects[NODE]; i++)
+        for ( i=0; i<project->Nobjects[NODE]; i++)
         {
-            if ( Examined[i] ) continue;
-            Last = -1;
-            findSpanningTree(i);
+            if ( project->Examined[i] ) continue;
+            project->Last = -1;
+            findSpanningTree(project,i);
         }
     }
-    FREE(StartPos);
-    FREE(AdjList);
-    FREE(Stack);
-    FREE(Examined);
-    FREE(InTree);
-    FREE(LoopLinks);
+    FREE(project->StartPos);
+    FREE(project->AdjList);
+    FREE(project->Stack);
+    FREE(project->Examined);
+    FREE(project->InTree);
+    FREE(project->LoopLinks);
 }
 
 //=============================================================================
 
-void  findSpanningTree(int startNode)
+void  findSpanningTree(Project* project, int startNode)
 //
 //  Input:   i = index of starting node of tree
 //  Output:  none
@@ -335,24 +335,24 @@ void  findSpanningTree(int startNode)
     int nextNode, j, k, m;
 
     // --- examine each link connected to node i
-    for ( m = StartPos[startNode];
-          m < StartPos[startNode]+Node[startNode].degree; m++ )
+    for ( m = project->StartPos[startNode];
+          m < project->StartPos[startNode]+project->Node[startNode].degree; m++ )
     {
         // --- find which node (j) connects link k from start node
-        k = AdjList[m];
-        if ( Link[k].node1 == startNode ) j = Link[k].node2;
-        else j = Link[k].node1;
+        k = project->AdjList[m];
+        if ( project->Link[k].node1 == startNode ) j = project->Link[k].node2;
+        else j = project->Link[k].node1;
 
         // --- if link k is not in the tree
-        if ( InTree[k] == 0 )
+        if ( project->InTree[k] == 0 )
         {
             // --- if connecting node already examined,
             //     then link k forms a loop; mark it as a chord
             //     and check if loop forms a cycle
-            if ( Examined[j] )
+            if ( project->Examined[j] )
             {
-                InTree[k] = 2;
-                evalLoop(k);
+                project->InTree[k] = 2;
+                evalLoop(project,k);
             }
 
             // --- otherwise mark connected node as being examined,
@@ -360,27 +360,27 @@ void  findSpanningTree(int startNode)
             //     link as being in the spanning tree
             else
             {
-                Examined[j] = 1;
-                Last++;
-                Stack[Last] = j;
-                InTree[k] = 1;
+                project->Examined[j] = 1;
+                project->Last++;
+                project->Stack[project->Last] = j;
+                project->InTree[k] = 1;
             }
         }
     }
 
     // --- continue to grow the spanning tree from
     //     the last node added to the stack
-    if ( Last >= 0 )
+    if ( project->Last >= 0 )
     {
-        nextNode = Stack[Last];
-        Last--;
-        findSpanningTree(nextNode);
+        nextNode = project->Stack[project->Last];
+        project->Last--;
+		findSpanningTree(project, nextNode);
     }
 }
 
 //=============================================================================
 
-void evalLoop(int startLink)
+void evalLoop(Project* project, int startLink)
 //
 //  Input:   startLink = index of starting link of a loop
 //  Output:  none
@@ -394,24 +394,24 @@ void evalLoop(int startLink)
     int isCycle;                       // TRUE if loop forms a cycle
 
     // --- make startLink the first link in the loop
-    LoopLinksLast = 0;
-    LoopLinks[0] = startLink;
+    project->LoopLinksLast = 0;
+    project->LoopLinks[0] = startLink;
 
     // --- trace a path on the spanning tree that starts at the
     //     tail node of startLink and ends at its head node
-    i1 = Link[startLink].node1;
-    i2 = Link[startLink].node2;
-    if ( !traceLoop(i1, i2, startLink) ) return;
+    i1 = project->Link[startLink].node1;
+    i2 = project->Link[startLink].node2;
+	if (!traceLoop(project, i1, i2, startLink)) return;
 
     // --- check if all links on the path are oriented head-to-tail
     isCycle = TRUE;
-    j = LoopLinks[0];
-    i2 = Link[j].node2;
-    for (i=1; i<=LoopLinksLast; i++)
+    j = project->LoopLinks[0];
+    i2 = project->Link[j].node2;
+    for (i=1; i<=project->LoopLinksLast; i++)
     {
-        j = LoopLinks[i];
-        i1 = Link[j].node1;
-        if ( i1 == i2 ) i2 = Link[j].node2;
+        j = project->LoopLinks[i];
+        i1 = project->Link[j].node1;
+        if ( i1 == i2 ) i2 = project->Link[j].node2;
         else
         {
             isCycle = FALSE;
@@ -423,19 +423,19 @@ void evalLoop(int startLink)
     if ( isCycle )
     {
         kount = 0;
-        for (i = 0; i <= LoopLinksLast; i++)
+        for (i = 0; i <= project->LoopLinksLast; i++)
         {
-            if ( kount % 5 == 0 ) fprintf(Frpt.file, "\n");
+            if ( kount % 5 == 0 ) fprintf(project->Frpt.file, "\n");
             kount++;
-            fprintf(Frpt.file, "  %s", Link[LoopLinks[i]].ID);
-            if ( i < LoopLinksLast ) fprintf(Frpt.file, "  -->");
+            fprintf(project->Frpt.file, "  %s", project->Link[project->LoopLinks[i]].ID);
+            if ( i < project->LoopLinksLast ) fprintf(project->Frpt.file, "  -->");
         }
     }
 }
 
 //=============================================================================
 
-int traceLoop(int i1, int i2, int k1)
+int traceLoop(Project* project, int i1, int i2, int k1)
 //
 //  Input:   i1 = index of current node reached while tracing a loop
 //           i2 = index of final node on the loop
@@ -450,23 +450,23 @@ int traceLoop(int i1, int i2, int k1)
     if ( i1 == i2 ) return TRUE;
 
     // --- examine each link connected to current node
-    for (m = StartPos[i1]; m < StartPos[i1] + Node[i1].degree; m++)
+    for (m = project->StartPos[i1]; m < project->StartPos[i1] + project->Node[i1].degree; m++)
     {
         // --- ignore link if it comes from predecessor node or if
         //     it is not on the spanning tree
-        k = AdjList[m];
-        if ( k == k1 || InTree[k] != 1 ) continue;
+        k = project->AdjList[m];
+        if ( k == k1 || project->InTree[k] != 1 ) continue;
 
         // --- identify other node that link is connected to
-        if ( Link[k].node1 == i1 ) j = Link[k].node2;
-        else                       j = Link[k].node1;
+        if ( project->Link[k].node1 == i1 ) j = project->Link[k].node2;
+        else                       j = project->Link[k].node1;
 
         // --- try to continue tracing the loop from this node;
         //     if successful, then add link to loop and return
-        if ( traceLoop(j, i2, k) )
+        if ( traceLoop(project, j, i2, k) )
         {
-            LoopLinksLast++;
-            LoopLinks[LoopLinksLast] = k;
+            project->LoopLinksLast++;
+            project->LoopLinks[project->LoopLinksLast] = k;
             return TRUE;
         }
     }
@@ -477,7 +477,7 @@ int traceLoop(int i1, int i2, int k1)
 
 //=============================================================================
 
-void checkDummyLinks()
+void checkDummyLinks(Project* project)
 //
 //  Input:   none
 //  Output:  none
@@ -489,22 +489,22 @@ void checkDummyLinks()
 
     // --- create an array that marks nodes
     //     (calloc initializes the array to 0)
-    marked = (int *) calloc(Nobjects[NODE], sizeof(int));
+    marked = (int *) calloc(project->Nobjects[NODE], sizeof(int));
     if ( marked == NULL )
     {
-        report_writeErrorMsg(ERR_MEMORY, "");
+        report_writeErrorMsg(project,ERR_MEMORY, "");
         return;
     }
 
     // --- mark nodes that whose incoming links are all
     //     either dummy links or ideal pumps
-    for ( i = 0; i < Nobjects[LINK]; i++ )
+    for ( i = 0; i < project->Nobjects[LINK]; i++ )
     {
-        j = Link[i].node2;
-        if ( Link[i].direction < 0 ) j = Link[i].node1;
-        if ( (Link[i].type == CONDUIT && Link[i].xsect.type == DUMMY) ||
-             (Link[i].type == PUMP &&
-              Pump[Link[i].subIndex].type == IDEAL_PUMP) )
+        j = project->Link[i].node2;
+        if ( project->Link[i].direction < 0 ) j = project->Link[i].node1;
+        if ( (project->Link[i].type == CONDUIT && project->Link[i].xsect.type == DUMMY) ||
+             (project->Link[i].type == PUMP &&
+              project->Pump[project->Link[i].subIndex].type == IDEAL_PUMP) )
         {
             if ( marked[j] == 0 ) marked[j] = 1;
         }
@@ -512,16 +512,16 @@ void checkDummyLinks()
     }
 
     // --- find marked nodes with outgoing dummy links or ideal pumps
-    for ( i = 0; i < Nobjects[LINK]; i++ )
+    for ( i = 0; i < project->Nobjects[LINK]; i++ )
     {
-        if ( (Link[i].type == CONDUIT && Link[i].xsect.type == DUMMY) ||
-             (Link[i].type == PUMP && 
-              Pump[Link[i].subIndex].type == IDEAL_PUMP) )
+        if ( (project->Link[i].type == CONDUIT && project->Link[i].xsect.type == DUMMY) ||
+             (project->Link[i].type == PUMP && 
+              project->Pump[project->Link[i].subIndex].type == IDEAL_PUMP) )
         {
-            j = Link[i].node1;
+            j = project->Link[i].node1;
             if ( marked[j] > 0 )
             {
-                report_writeErrorMsg(ERR_DUMMY_LINK, Node[j].ID);
+                report_writeErrorMsg(project,ERR_DUMMY_LINK, project->Node[j].ID);
             }
         }
     }

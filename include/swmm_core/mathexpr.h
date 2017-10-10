@@ -8,6 +8,9 @@
 **  LAST UPDATE:   03/20/14
 ******************************************************************************/
 
+#ifndef MATHEXPR_H
+#define MATHEXPR_H
+
 //  Node in a tokenized math expression list
 struct ExprNode
 {
@@ -19,11 +22,15 @@ struct ExprNode
 };
 typedef struct ExprNode MathExpr;
 
+typedef struct Project Project;
+
 //  Creates a tokenized math expression from a string
-MathExpr* mathexpr_create(char* s, int (*getVar) (char *));
+MathExpr* mathexpr_create(Project* project, char* s, int(*getVar) (struct Project*, char *));
 
 //  Evaluates a tokenized math expression
-double mathexpr_eval(MathExpr* expr, double (*getVal) (int));
+double mathexpr_eval(Project* project, MathExpr* expr, double(*getVal) (struct Project* , int));
 
 //  Deletes a tokenized math expression
 void  mathexpr_delete(MathExpr* expr);
+
+#endif

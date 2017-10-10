@@ -7,7 +7,6 @@
 //             03/28/14  (Build 5.1.002)
 //             04/23/14  (Build 5.1.005)
 //             03/19/15  (Build 5.1.008)
-//             08/01/16  (Build 5.1.011)
 //   Author:   L. Rossman (EPA)
 //
 //   Hot Start file functions.
@@ -32,10 +31,7 @@
 //   - Storage node hydraulic residence time (HRT) was added to the file.
 //   - Link control settings are now applied when reading a hot start file.
 //   - Runoff read from file assigned to newRunoff property instead of oldRunoff.
-//   - Array indexing bug when reading snowpack state from file fixed.
-//
-//   Build 5.1.011:
-//   - Link control setting bug when reading a hot start file fixed.    
+//   - Array indexing bug when reading snowpack state from file fixed. 
 //
 //-----------------------------------------------------------------------------
 #define _CRT_SECURE_NO_DEPRECATE
@@ -60,29 +56,29 @@ static int fileVersion;
 //-----------------------------------------------------------------------------
 // Function declarations
 //-----------------------------------------------------------------------------
-static int  openHotstartFile1(void); 
-static int  openHotstartFile2(void);       
-static void readRunoff(void);
-static void saveRunoff(void);
-static void readRouting(void);
-static void saveRouting(void);
-static int  readFloat(float *x, FILE* f);
-static int  readDouble(double* x, FILE* f);
+static int  openHotstartFile1(Project* project);
+static int  openHotstartFile2(Project* project);       
+static void readRunoff(Project* project);
+static void saveRunoff(Project* project);
+static void readRouting(Project* project);
+static void saveRouting(Project* project);
+static int  readFloat(Project* project, float *x, FILE* f);
+static int  readDouble(Project* project, double* x, FILE* f);
 
 //=============================================================================
 
-int hotstart_open()
+int hotstart_open(Project* project)
 {
     // --- open hot start files
-    if ( !openHotstartFile1() ) return FALSE;       //input hot start file
-    if ( !openHotstartFile2() ) return FALSE;       //output hot start file
+    if ( !openHotstartFile1(project) ) return FALSE;       //input hot start file
+    if ( !openHotstartFile2(project) ) return FALSE;       //output hot start file
 
     ////  Following lines removed. ////                                            //(5.1.005)
-    //if ( Fhotstart1.file )
+    //if ( project->Fhotstart1.file )
     //{
     //    readRunoff();
     //    readRouting();
-    //    fclose(Fhotstart1.file);
+    //    fclose(project->Fhotstart1.file);
     //}
 
     return TRUE;
@@ -90,19 +86,19 @@ int hotstart_open()
 
 //=============================================================================
 
-void hotstart_close()
+void hotstart_close(Project* project)
 {
-    if ( Fhotstart2.file )
+    if ( project->Fhotstart2.file )
     {
-        saveRunoff();
-        saveRouting();
-        fclose(Fhotstart2.file);
+        saveRunoff(project);
+        saveRouting(project);
+        fclose(project->Fhotstart2.file);
     }
 }
 
 //=============================================================================
 
-int openHotstartFile1()
+int openHotstartFile1(Project* project)
 //
 //  Input:   none
 //  Output:  none
@@ -123,25 +119,25 @@ int openHotstartFile1()
     char  fileStamp4[] = "SWMM5-HOTSTART4";                                    //(5.1.008)
 
     // --- try to open the file
-    if ( Fhotstart1.mode != USE_FILE ) return TRUE;
-    if ( (Fhotstart1.file = fopen(Fhotstart1.name, "r+b")) == NULL)
+    if ( project->Fhotstart1.mode != USE_FILE ) return TRUE;
+    if ( (project->Fhotstart1.file = fopen(project->Fhotstart1.name, "r+b")) == NULL)
     {
-        report_writeErrorMsg(ERR_HOTSTART_FILE_OPEN, Fhotstart1.name);
+        report_writeErrorMsg(project,ERR_HOTSTART_FILE_OPEN, project->Fhotstart1.name);
         return FALSE;
     }
 
     // --- check that file contains proper header records
-    fread(fStampx, sizeof(char), strlen(fileStamp2), Fhotstart1.file);
+    fread(fStampx, sizeof(char), strlen(fileStamp2), project->Fhotstart1.file);
     if      ( strcmp(fStampx, fileStamp4) == 0 ) fileVersion = 4;              //(5.1.008)
     else if ( strcmp(fStampx, fileStamp3) == 0 ) fileVersion = 3;
     else if ( strcmp(fStampx, fileStamp2) == 0 ) fileVersion = 2;
     else
     {
-        rewind(Fhotstart1.file);
-        fread(fStamp, sizeof(char), strlen(fileStamp), Fhotstart1.file);
+        rewind(project->Fhotstart1.file);
+        fread(fStamp, sizeof(char), strlen(fileStamp), project->Fhotstart1.file);
         if ( strcmp(fStamp, fileStamp) != 0 )
         {
-            report_writeErrorMsg(ERR_HOTSTART_FILE_FORMAT, "");
+            report_writeErrorMsg(project,ERR_HOTSTART_FILE_FORMAT, "");
             return FALSE;
         }
         fileVersion = 1;
@@ -155,40 +151,40 @@ int openHotstartFile1()
     flowUnits = -1;
     if ( fileVersion >= 2 )                                                    //(5.1.002)
     {    
-        fread(&nSubcatch, sizeof(int), 1, Fhotstart1.file);
+        fread(&nSubcatch, sizeof(int), 1, project->Fhotstart1.file);
     }
-    else nSubcatch = Nobjects[SUBCATCH];
+    else nSubcatch = project->Nobjects[SUBCATCH];
     if ( fileVersion >= 3 )                                                    //(5.1.008)
     {
-        fread(&nLandUses, sizeof(int), 1, Fhotstart1.file);
+        fread(&nLandUses, sizeof(int), 1, project->Fhotstart1.file);
     }
-    else nLandUses = Nobjects[LANDUSE];
-    fread(&nNodes, sizeof(int), 1, Fhotstart1.file);
-    fread(&nLinks, sizeof(int), 1, Fhotstart1.file);
-    fread(&nPollut, sizeof(int), 1, Fhotstart1.file);
-    fread(&flowUnits, sizeof(int), 1, Fhotstart1.file);
-    if ( nSubcatch != Nobjects[SUBCATCH] 
-    ||   nLandUses != Nobjects[LANDUSE]
-    ||   nNodes    != Nobjects[NODE]
-    ||   nLinks    != Nobjects[LINK]
-    ||   nPollut   != Nobjects[POLLUT]
-    ||   flowUnits != FlowUnits )
+    else nLandUses = project->Nobjects[LANDUSE];
+    fread(&nNodes, sizeof(int), 1, project->Fhotstart1.file);
+    fread(&nLinks, sizeof(int), 1, project->Fhotstart1.file);
+    fread(&nPollut, sizeof(int), 1, project->Fhotstart1.file);
+    fread(&flowUnits, sizeof(int), 1, project->Fhotstart1.file);
+    if ( nSubcatch != project->Nobjects[SUBCATCH] 
+    ||   nLandUses != project->Nobjects[LANDUSE]
+    ||   nNodes    != project->Nobjects[NODE]
+    ||   nLinks    != project->Nobjects[LINK]
+    ||   nPollut   != project->Nobjects[POLLUT]
+    ||   flowUnits != project->FlowUnits )
     {
-         report_writeErrorMsg(ERR_HOTSTART_FILE_FORMAT, "");
+         report_writeErrorMsg(project,ERR_HOTSTART_FILE_FORMAT, "");
          return FALSE;
     }
 
     // --- read contents of the file and close it
-    if ( fileVersion >= 3 ) readRunoff();                                      //(5.1.008)
-    readRouting();
-    fclose(Fhotstart1.file);
-    if ( ErrorCode ) return FALSE;
+    if ( fileVersion >= 3 ) readRunoff(project);                                      //(5.1.008)
+    readRouting(project);
+    fclose(project->Fhotstart1.file);
+    if ( project->ErrorCode ) return FALSE;
     else return TRUE;
 }
 
 //=============================================================================
 
-int openHotstartFile2()
+int openHotstartFile2(Project* project)
 //
 //  Input:   none
 //  Output:  none
@@ -204,33 +200,33 @@ int openHotstartFile2()
     char  fileStamp[] = "SWMM5-HOTSTART4";                                     //(5.1.008)
 
     // --- try to open file
-    if ( Fhotstart2.mode != SAVE_FILE ) return TRUE;
-    if ( (Fhotstart2.file = fopen(Fhotstart2.name, "w+b")) == NULL)
+    if ( project->Fhotstart2.mode != SAVE_FILE ) return TRUE;
+    if ( (project->Fhotstart2.file = fopen(project->Fhotstart2.name, "w+b")) == NULL)
     {
-        report_writeErrorMsg(ERR_HOTSTART_FILE_OPEN, Fhotstart2.name);
+        report_writeErrorMsg(project,ERR_HOTSTART_FILE_OPEN, project->Fhotstart2.name);
         return FALSE;
     }
 
     // --- write file stamp & number of objects to file
-    nSubcatch = Nobjects[SUBCATCH];
-    nLandUses = Nobjects[LANDUSE];
-    nNodes = Nobjects[NODE];
-    nLinks = Nobjects[LINK];
-    nPollut = Nobjects[POLLUT];
-    flowUnits = FlowUnits;
-    fwrite(fileStamp, sizeof(char), strlen(fileStamp), Fhotstart2.file);
-    fwrite(&nSubcatch, sizeof(int), 1, Fhotstart2.file);
-    fwrite(&nLandUses, sizeof(int), 1, Fhotstart2.file);
-    fwrite(&nNodes, sizeof(int), 1, Fhotstart2.file);
-    fwrite(&nLinks, sizeof(int), 1, Fhotstart2.file);
-    fwrite(&nPollut, sizeof(int), 1, Fhotstart2.file);
-    fwrite(&flowUnits, sizeof(int), 1, Fhotstart2.file);
+    nSubcatch = project->Nobjects[SUBCATCH];
+    nLandUses = project->Nobjects[LANDUSE];
+    nNodes = project->Nobjects[NODE];
+    nLinks = project->Nobjects[LINK];
+    nPollut = project->Nobjects[POLLUT];
+    flowUnits = project->FlowUnits;
+    fwrite(fileStamp, sizeof(char), strlen(fileStamp), project->Fhotstart2.file);
+    fwrite(&nSubcatch, sizeof(int), 1, project->Fhotstart2.file);
+    fwrite(&nLandUses, sizeof(int), 1, project->Fhotstart2.file);
+    fwrite(&nNodes, sizeof(int), 1, project->Fhotstart2.file);
+    fwrite(&nLinks, sizeof(int), 1, project->Fhotstart2.file);
+    fwrite(&nPollut, sizeof(int), 1, project->Fhotstart2.file);
+    fwrite(&flowUnits, sizeof(int), 1, project->Fhotstart2.file);
     return TRUE;
 }
 
 //=============================================================================
 
-void  saveRouting()
+void  saveRouting(Project* project)
 //
 //  Input:   none
 //  Output:  none
@@ -240,44 +236,44 @@ void  saveRouting()
     int   i, j;
     float x[3];
 
-    for (i = 0; i < Nobjects[NODE]; i++)
+    for (i = 0; i < project->Nobjects[NODE]; i++)
     {
-        x[0] = (float)Node[i].newDepth;
-        x[1] = (float)Node[i].newLatFlow;
-        fwrite(x, sizeof(float), 2, Fhotstart2.file);
+        x[0] = (float)project->Node[i].newDepth;
+        x[1] = (float)project->Node[i].newLatFlow;
+        fwrite(x, sizeof(float), 2, project->Fhotstart2.file);
 
 ////  New code added to release 5.1.008.  ////                                 //(5.1.008)
-        if ( Node[i].type == STORAGE )
+        if ( project->Node[i].type == STORAGE )
         {
-            j = Node[i].subIndex;
-            x[0] = (float)Storage[j].hrt;
-            fwrite(&x[0], sizeof(float), 1, Fhotstart2.file);
+            j = project->Node[i].subIndex;
+            x[0] = (float)project->Storage[j].hrt;
+            fwrite(&x[0], sizeof(float), 1, project->Fhotstart2.file);
         }
 ////
 
-        for (j = 0; j < Nobjects[POLLUT]; j++)
+        for (j = 0; j < project->Nobjects[POLLUT]; j++)
         {
-            x[0] = (float)Node[i].newQual[j];
-            fwrite(&x[0], sizeof(float), 1, Fhotstart2.file);
+            x[0] = (float)project->Node[i].newQual[j];
+            fwrite(&x[0], sizeof(float), 1, project->Fhotstart2.file);
         }
     }
-    for (i = 0; i < Nobjects[LINK]; i++)
+    for (i = 0; i < project->Nobjects[LINK]; i++)
     {
-        x[0] = (float)Link[i].newFlow;
-        x[1] = (float)Link[i].newDepth;
-        x[2] = (float)Link[i].setting;
-        fwrite(x, sizeof(float), 3, Fhotstart2.file);
-        for (j = 0; j < Nobjects[POLLUT]; j++)
+        x[0] = (float)project->Link[i].newFlow;
+        x[1] = (float)project->Link[i].newDepth;
+        x[2] = (float)project->Link[i].setting;
+        fwrite(x, sizeof(float), 3, project->Fhotstart2.file);
+        for (j = 0; j < project->Nobjects[POLLUT]; j++)
         {
-            x[0] = (float)Link[i].newQual[j];
-            fwrite(&x[0], sizeof(float), 1, Fhotstart2.file);
+            x[0] = (float)project->Link[i].newQual[j];
+            fwrite(&x[0], sizeof(float), 1, project->Fhotstart2.file);
         }
     }
 }
 
 //=============================================================================
 
-void readRouting()
+void readRouting(Project* project)
 //
 //  Input:   none 
 //  Output:  none
@@ -288,7 +284,7 @@ void readRouting()
     int   i, j;
     float x;
     double xgw[4];
-    FILE* f = Fhotstart1.file;
+    FILE* f = project->Fhotstart1.file;
 
     // --- for file format 2, assign GW moisture content and lower depth
     if ( fileVersion == 2 )
@@ -296,80 +292,80 @@ void readRouting()
         // --- flow and available upper zone volume not used
         xgw[2] = 0.0;
         xgw[3] = MISSING;
-        for (i = 0; i < Nobjects[SUBCATCH]; i++)
+        for (i = 0; i < project->Nobjects[SUBCATCH]; i++)
         {
             // --- read moisture content and water table elevation as floats
-            if ( !readFloat(&x, f) ) return;
+            if ( !readFloat(project,&x, f) ) return;
             xgw[0] = x;
-            if ( !readFloat(&x, f) ) return;
+            if ( !readFloat(project,&x, f) ) return;
             xgw[1] = x;
 
             // --- set GW state
-            if ( Subcatch[i].groundwater != NULL ) gwater_setState(i, xgw);
+            if ( project->Subcatch[i].groundwater != NULL ) gwater_setState(project,i, xgw);
         }
     }
 
     // --- read node states
-    for (i = 0; i < Nobjects[NODE]; i++)
+    for (i = 0; i < project->Nobjects[NODE]; i++)
     {
-        if ( !readFloat(&x, f) ) return;
-        Node[i].newDepth = x;
-        if ( !readFloat(&x, f) ) return;
-        Node[i].newLatFlow = x;
+        if ( !readFloat(project,&x, f) ) return;
+        project->Node[i].newDepth = x;
+        if ( !readFloat(project,&x, f) ) return;
+        project->Node[i].newLatFlow = x;
 
 ////  New code added to release 5.1.008.  ////                                 //(5.1.008)
-        if ( fileVersion >= 4 &&  Node[i].type == STORAGE )
+        if ( fileVersion >= 4 &&  project->Node[i].type == STORAGE )
         {
-            if ( !readFloat(&x, f) ) return;
-            j = Node[i].subIndex;
-            Storage[j].hrt = x;
+            if ( !readFloat(project,&x, f) ) return;
+            j = project->Node[i].subIndex;
+            project->Storage[j].hrt = x;
         }
 ////
 
-        for (j = 0; j < Nobjects[POLLUT]; j++)
+        for (j = 0; j < project->Nobjects[POLLUT]; j++)
         {
-            if ( !readFloat(&x, f) ) return;
-            Node[i].newQual[j] = x;
+            if ( !readFloat(project,&x, f) ) return;
+            project->Node[i].newQual[j] = x;
         }
 
         // --- read in zeros here for backwards compatibility
         if ( fileVersion <= 2 )
         {
-            for (j = 0; j < Nobjects[POLLUT]; j++)
+            for (j = 0; j < project->Nobjects[POLLUT]; j++)
             {
-                if ( !readFloat(&x, f) ) return;
+                if ( !readFloat(project,&x, f) ) return;
             }
         }
     }
 
     // --- read link states
-    for (i = 0; i < Nobjects[LINK]; i++)
+    for (i = 0; i < project->Nobjects[LINK]; i++)
     {
-        if ( !readFloat(&x, f) ) return;
-        Link[i].newFlow = x;
-        if ( !readFloat(&x, f) ) return;
-        Link[i].newDepth = x;
-        if ( !readFloat(&x, f) ) return;
-        Link[i].setting = x;
-
-////  Following code section moved to here.  ////                              //(5.1.011)
-        // --- set link's target setting to saved setting 
-        Link[i].targetSetting = x;
-        link_setTargetSetting(i);
-        link_setSetting(i, 0.0);
-////
-        for (j = 0; j < Nobjects[POLLUT]; j++)
+        if ( !readFloat(project,&x, f) ) return;
+        project->Link[i].newFlow = x;
+        if ( !readFloat(project,&x, f) ) return;
+        project->Link[i].newDepth = x;
+        if ( !readFloat(project,&x, f) ) return;
+        project->Link[i].setting = x;
+        for (j = 0; j < project->Nobjects[POLLUT]; j++)
         {
-            if ( !readFloat(&x, f) ) return;
-            Link[i].newQual[j] = x;
+            if ( !readFloat(project,&x, f) ) return;
+            project->Link[i].newQual[j] = x;
         }
+
+////  New code added to release 5.1.008.  ////                                 //(5.1.008)
+        // --- set link's target setting to saved setting 
+        project->Link[i].targetSetting = x;
+		link_setTargetSetting(project, i);
+		link_setSetting(project, i, 0.0);
+////
 
     }
 }
 
 //=============================================================================
 
-void  saveRunoff(void)
+void  saveRunoff(Project* project)
 //
 //  Input:   none
 //  Output:  none
@@ -378,58 +374,58 @@ void  saveRunoff(void)
 {
     int   i, j, k, sizeX;
     double* x;
-    FILE*  f = Fhotstart2.file;
+    FILE*  f = project->Fhotstart2.file;
 
-    sizeX = MAX(6, Nobjects[POLLUT]+1);
+    sizeX = MAX(6, project->Nobjects[POLLUT]+1);
     x = (double *) calloc(sizeX, sizeof(double));
 
-    for (i = 0; i < Nobjects[SUBCATCH]; i++)
+    for (i = 0; i < project->Nobjects[SUBCATCH]; i++)
     {
         // Ponded depths for each sub-area & total runoff (4 elements)
-        for (j = 0; j < 3; j++) x[j] = Subcatch[i].subArea[j].depth;
-        x[3] = Subcatch[i].newRunoff;
+        for (j = 0; j < 3; j++) x[j] = project->Subcatch[i].subArea[j].depth;
+        x[3] = project->Subcatch[i].newRunoff;
         fwrite(x, sizeof(double), 4, f);
 
         // Infiltration state (max. of 6 elements)
         for (j=0; j<sizeX; j++) x[j] = 0.0;
-        infil_getState(i, InfilModel, x);
+        infil_getState(project,i, project->InfilModel, x);
         fwrite(x, sizeof(double), 6, f);
 
         // Groundwater state (4 elements)
-        if ( Subcatch[i].groundwater != NULL )
+        if ( project->Subcatch[i].groundwater != NULL )
         {
-            gwater_getState(i, x);
+            gwater_getState(project,i, x);
             fwrite(x, sizeof(double), 4, f);
         }
 
         // Snowpack state (5 elements for each of 3 snow surfaces)
-        if ( Subcatch[i].snowpack != NULL )
+        if ( project->Subcatch[i].snowpack != NULL )
         {
             for (j=0; j<3; j++)
             {
-                snow_getState(i, j, x);
+                snow_getState(project, i, j, x);
                 fwrite(x, sizeof(double), 5, f);
             }
         }
 
         // Water quality
-        if ( Nobjects[POLLUT] > 0 )                                            //(5.1.008)
+        if ( project->Nobjects[POLLUT] > 0 )                                            //(5.1.008)
         {
             // Runoff quality
-            for (j=0; j<Nobjects[POLLUT]; j++) x[j] = Subcatch[i].newQual[j];
-            fwrite(x, sizeof(double), Nobjects[POLLUT], f);
+            for (j=0; j<project->Nobjects[POLLUT]; j++) x[j] = project->Subcatch[i].newQual[j];
+            fwrite(x, sizeof(double), project->Nobjects[POLLUT], f);
 
             // Ponded quality
-            for (j=0; j<Nobjects[POLLUT]; j++) x[j] = Subcatch[i].pondedQual[j];
-            fwrite(x, sizeof(double), Nobjects[POLLUT], f);
+            for (j=0; j<project->Nobjects[POLLUT]; j++) x[j] = project->Subcatch[i].pondedQual[j];
+            fwrite(x, sizeof(double), project->Nobjects[POLLUT], f);
             
             // Buildup and when streets were last swept
-            for (k=0; k<Nobjects[LANDUSE]; k++)
+            for (k=0; k<project->Nobjects[LANDUSE]; k++)
             {
-                for (j=0; j<Nobjects[POLLUT]; j++)
-                    x[j] = Subcatch[i].landFactor[k].buildup[j];
-                fwrite(x, sizeof(double), Nobjects[POLLUT], f);
-                x[0] = Subcatch[i].landFactor[k].lastSwept;
+                for (j=0; j<project->Nobjects[POLLUT]; j++)
+                    x[j] = project->Subcatch[i].landFactor[k].buildup[j];
+                fwrite(x, sizeof(double), project->Nobjects[POLLUT], f);
+                x[0] = project->Subcatch[i].landFactor[k].lastSwept;
                 fwrite(x, sizeof(double), 1, f);
             }
         }
@@ -439,7 +435,7 @@ void  saveRunoff(void)
 
 //=============================================================================
 
-void  readRunoff()
+void  readRunoff(Project* project)
 //
 //  Input:   none
 //  Output:  none
@@ -448,58 +444,58 @@ void  readRunoff()
 {
     int    i, j, k;
     double x[6];
-    FILE*  f = Fhotstart1.file;
+    FILE*  f = project->Fhotstart1.file;
 
-    for (i = 0; i < Nobjects[SUBCATCH]; i++)
+    for (i = 0; i < project->Nobjects[SUBCATCH]; i++)
     {
         // Ponded depths & runoff (4 elements)
         for (j = 0; j < 3; j++)
         {
-            if ( !readDouble(&Subcatch[i].subArea[j].depth, f) ) return;
+            if ( !readDouble(project, &project->Subcatch[i].subArea[j].depth, f) ) return;
         }
-        if ( !readDouble(&Subcatch[i].newRunoff, f) ) return;                  //(5.1.008)
+		if (!readDouble(project, &project->Subcatch[i].newRunoff, f)) return;                  //(5.1.008)
 
         // Infiltration state (max. of 6 elements)
-        for (j=0; j<6; j++) if ( !readDouble(&x[j], f) ) return;
-        infil_setState(i, InfilModel, x);
+		for (j = 0; j<6; j++) if (!readDouble(project, &x[j], f)) return;
+        infil_setState(project,i, project->InfilModel, x);
 
         // Groundwater state (4 elements)
-        if ( Subcatch[i].groundwater != NULL )
+        if ( project->Subcatch[i].groundwater != NULL )
         {
-            for (j=0; j<4; j++) if ( !readDouble(&x[j], f) ) return;
-            gwater_setState(i, x);
+			for (j = 0; j<4; j++) if (!readDouble(project, &x[j], f)) return;
+            gwater_setState(project,i, x);
         }
 
         // Snowpack state (5 elements for each of 3 snow surfaces)
-        if ( Subcatch[i].snowpack != NULL )
+        if ( project->Subcatch[i].snowpack != NULL )
         {
             for (j=0; j<3; j++) 
             {
-                for (k=0; k<5; k++) if ( !readDouble(&x[k], f) ) return;       //(5.1.008)
-                snow_setState(i, j, x);
+				for (k = 0; k<5; k++) if (!readDouble(project, &x[k], f)) return;       //(5.1.008)
+				snow_setState(project, i, j, x);
             }
         }
 
         // Water quality
-        if ( Nobjects[POLLUT] > 0 )                                            //(5.1.008)
+        if ( project->Nobjects[POLLUT] > 0 )                                            //(5.1.008)
         {
             // Runoff quality
-            for (j=0; j<Nobjects[POLLUT]; j++)
-                if ( ! readDouble(&Subcatch[i].newQual[j], f) ) return;        //(5.1.008)
+            for (j=0; j<project->Nobjects[POLLUT]; j++)
+				if (!readDouble(project, &project->Subcatch[i].newQual[j], f)) return;        //(5.1.008)
 
             // Ponded quality
-            for (j=0; j<Nobjects[POLLUT]; j++)
-                if ( !readDouble(&Subcatch[i].pondedQual[j], f) ) return;
+            for (j=0; j<project->Nobjects[POLLUT]; j++)
+				if (!readDouble(project, &project->Subcatch[i].pondedQual[j], f)) return;
             
             // Buildup and when streets were last swept
-            for (k=0; k<Nobjects[LANDUSE]; k++)
+            for (k=0; k<project->Nobjects[LANDUSE]; k++)
             {
-                for (j=0; j<Nobjects[POLLUT]; j++)
+                for (j=0; j<project->Nobjects[POLLUT]; j++)
                 {
-                    if ( !readDouble(
-                        &Subcatch[i].landFactor[k].buildup[j], f) ) return;
+					if (!readDouble(project,
+                        &project->Subcatch[i].landFactor[k].buildup[j], f) ) return;
                 }
-                if ( !readDouble(&Subcatch[i].landFactor[k].lastSwept, f) )
+				if (!readDouble(project, &project->Subcatch[i].landFactor[k].lastSwept, f))
                     return;
             }
         }
@@ -508,7 +504,7 @@ void  readRunoff()
 
 //=============================================================================
 
-int  readFloat(float *x, FILE* f)
+int  readFloat(Project* project, float *x, FILE* f)
 //
 //  Input:   none
 //  Output:  x  = pointer to a float variable
@@ -521,7 +517,7 @@ int  readFloat(float *x, FILE* f)
     // --- test if the value is NaN (not a number)
     if ( *(x) != *(x) )
     {
-        report_writeErrorMsg(ERR_HOTSTART_FILE_READ, "");
+        report_writeErrorMsg(project,ERR_HOTSTART_FILE_READ, "");
         *(x) = 0.0;
         return FALSE;
     }
@@ -530,7 +526,7 @@ int  readFloat(float *x, FILE* f)
 
 //=============================================================================
 
-int  readDouble(double* x, FILE* f)
+int  readDouble(Project* project, double* x, FILE* f)
 //
 //  Input:   none
 //  Output:  x  = pointer to a double variable
@@ -541,7 +537,7 @@ int  readDouble(double* x, FILE* f)
     if ( feof(f) )
     {    
         *(x) = 0.0;
-        report_writeErrorMsg(ERR_HOTSTART_FILE_READ, "");
+        report_writeErrorMsg(project,ERR_HOTSTART_FILE_READ, "");
         return FALSE;
     }
     fread(x, sizeof(double), 1, f);

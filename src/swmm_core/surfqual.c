@@ -25,17 +25,17 @@
 //  Imported variables 
 //-----------------------------------------------------------------------------
 // Declared in RUNOFF.C
-extern  double*    OutflowLoad;   // exported pollutant mass load
-
-// Volumes (ft3) for a subcatchment over a time step declared in SUBCATCH.C
-extern double      Vinfil;        // non-LID infiltration
-extern double      Vinflow;       // non-LID precip + snowmelt + runon + ponded water
-extern double      Voutflow;      // non-LID runoff to subcatchment's outlet
-extern double      VlidIn;        // inflow to LID units
-extern double      VlidInfil;     // infiltration from LID units
-extern double      VlidOut;       // surface outflow from LID units
-extern double      VlidDrain;     // drain outflow from LID units
-extern double      VlidReturn;    // LID outflow returned to pervious area
+//extern  double*    OutflowLoad;   // exported pollutant mass load
+//
+//// Volumes (ft3) for a subcatchment over a time step declared in SUBCATCH.C
+//extern double      project->Vinfil;        // non-LID infiltration
+//extern double      project->Vinflow;       // non-LID precip + snowmelt + runon + ponded water
+//extern double      project->Voutflow;      // non-LID runoff to subcatchment's outlet
+//extern double      VlidIn;        // inflow to LID units
+//extern double      VlidInfil;     // infiltration from LID units
+//extern double      VlidOut;       // surface outflow from LID units
+//extern double      project->VlidDrain;     // drain outflow from LID units
+//extern double      project->VlidReturn;    // LID outflow returned to pervious area
 
 //-----------------------------------------------------------------------------
 //  External functions (declared in funcs.h)   
@@ -49,13 +49,13 @@ extern double      VlidReturn;    // LID outflow returned to pervious area
 //-----------------------------------------------------------------------------
 // Function declarations
 //-----------------------------------------------------------------------------
-static void  findWashoffLoads(int j, double runoff);
-static void  findPondedLoads(int j, double tStep);
-static void  findLidLoads(int j, double tStep);
+static void  findWashoffLoads(Project* project, int j, double runoff);
+static void  findPondedLoads(Project* project, int j, double tStep);
+static void  findLidLoads(Project* project, int j, double tStep);
 
 //=============================================================================
 
-void surfqual_initState(int j)
+void surfqual_initState(Project* project, int j)
 //
 //  Input:   j = subcatchment index
 //  Output:  none
@@ -65,21 +65,21 @@ void surfqual_initState(int j)
     int p;
 
     // --- initialize washoff quality
-    for (p = 0; p < Nobjects[POLLUT]; p++)
+    for (p = 0; p < project->Nobjects[POLLUT]; p++)
     {
-        Subcatch[j].oldQual[p] = 0.0;
-        Subcatch[j].newQual[p] = 0.0;
-        Subcatch[j].pondedQual[p] = 0.0;
+        project->Subcatch[j].oldQual[p] = 0.0;
+        project->Subcatch[j].newQual[p] = 0.0;
+        project->Subcatch[j].pondedQual[p] = 0.0;
     }
 
     // --- initialize pollutant buildup
-	landuse_getInitBuildup(Subcatch[j].landFactor,  Subcatch[j].initBuildup,
-		Subcatch[j].area, Subcatch[j].curbLength);
+	landuse_getInitBuildup(project,project->Subcatch[j].landFactor,  project->Subcatch[j].initBuildup,
+		project->Subcatch[j].area, project->Subcatch[j].curbLength);
 }
 
 //=============================================================================
 
-void surfqual_getBuildup(int j, double tStep)
+void surfqual_getBuildup(Project* project, int j, double tStep)
 //
 //  Input:   j = subcatchment index
 //           tStep = time step (sec)
@@ -96,30 +96,30 @@ void surfqual_getBuildup(int j, double tStep)
     double  newBuildup;                // buildup at end of time step
 
     // --- consider each landuse
-    for (i = 0; i < Nobjects[LANDUSE]; i++)
+    for (i = 0; i < project->Nobjects[LANDUSE]; i++)
     {
         // --- skip landuse if not in subcatch
-        f = Subcatch[j].landFactor[i].fraction;
+        f = project->Subcatch[j].landFactor[i].fraction;
         if ( f == 0.0 ) continue;
 
         // --- get land area (in acres or hectares) & curb length
-        area = f * Subcatch[j].area * UCF(LANDAREA);
-        curb = f * Subcatch[j].curbLength;
+		area = f * project->Subcatch[j].area * UCF(project, LANDAREA);
+        curb = f * project->Subcatch[j].curbLength;
 
         // --- examine each pollutant
-        for (p = 0; p < Nobjects[POLLUT]; p++)
+        for (p = 0; p < project->Nobjects[POLLUT]; p++)
         {
             // --- see if snow-only buildup is in effect
-            if (Pollut[p].snowOnly 
-            && Subcatch[j].newSnowDepth < 0.001/12.0) continue;
+            if (project->Pollut[p].snowOnly 
+            && project->Subcatch[j].newSnowDepth < 0.001/12.0) continue;
 
             // --- use land use's buildup function to update buildup amount
-            oldBuildup = Subcatch[j].landFactor[i].buildup[p];        
-            newBuildup = landuse_getBuildup(i, p, area, curb, oldBuildup,
+            oldBuildup = project->Subcatch[j].landFactor[i].buildup[p];        
+            newBuildup = landuse_getBuildup(project,i, p, area, curb, oldBuildup,
                          tStep);
             newBuildup = MAX(newBuildup, oldBuildup);
-            Subcatch[j].landFactor[i].buildup[p] = newBuildup;
-            massbal_updateLoadingTotals(BUILDUP_LOAD, p, 
+            project->Subcatch[j].landFactor[i].buildup[p] = newBuildup;
+            massbal_updateLoadingTotals(project,BUILDUP_LOAD, p, 
                                        (newBuildup - oldBuildup));
        }
     }
@@ -127,7 +127,7 @@ void surfqual_getBuildup(int j, double tStep)
 
 //=============================================================================
 
-void surfqual_sweepBuildup(int j, DateTime aDate)
+void surfqual_sweepBuildup(Project* project, int j, DateTime aDate)
 //
 //  Input:   j = subcatchment index
 //           aDate = current date/time
@@ -141,39 +141,39 @@ void surfqual_sweepBuildup(int j, DateTime aDate)
     double  newBuildup;                // buildup after sweeping (lbs or kg)
 
     // --- no sweeping if there is snow on plowable impervious area
-    if ( Subcatch[j].snowpack != NULL &&
-         Subcatch[j].snowpack->wsnow[IMPERV0] > MIN_TOTAL_DEPTH ) return;
+    if ( project->Subcatch[j].snowpack != NULL &&
+         project->Subcatch[j].snowpack->wsnow[IMPERV0] > MIN_TOTAL_DEPTH ) return;
 
     // --- consider each land use
-    for (i = 0; i < Nobjects[LANDUSE]; i++)
+    for (i = 0; i < project->Nobjects[LANDUSE]; i++)
     {
         // --- skip land use if not in subcatchment 
-        if ( Subcatch[j].landFactor[i].fraction == 0.0 ) continue;
+        if ( project->Subcatch[j].landFactor[i].fraction == 0.0 ) continue;
 
         // --- see if land use is subject to sweeping
-        if ( Landuse[i].sweepInterval == 0.0 ) continue;
+        if ( project->Landuse[i].sweepInterval == 0.0 ) continue;
 
         // --- see if sweep interval has been reached
-        if ( aDate - Subcatch[j].landFactor[i].lastSwept >=
-            Landuse[i].sweepInterval )
+        if ( aDate - project->Subcatch[j].landFactor[i].lastSwept >=
+            project->Landuse[i].sweepInterval )
         {
             // --- update time when last swept
-            Subcatch[j].landFactor[i].lastSwept = aDate;
+            project->Subcatch[j].landFactor[i].lastSwept = aDate;
 
             // --- examine each pollutant
-            for (p = 0; p < Nobjects[POLLUT]; p++)
+            for (p = 0; p < project->Nobjects[POLLUT]; p++)
             {
                 // --- reduce buildup by the fraction available
                 //     times the sweeping effic.
-                oldBuildup = Subcatch[j].landFactor[i].buildup[p];
-                newBuildup = oldBuildup * (1.0 - Landuse[i].sweepRemoval *
-                             Landuse[i].washoffFunc[p].sweepEffic);
+                oldBuildup = project->Subcatch[j].landFactor[i].buildup[p];
+                newBuildup = oldBuildup * (1.0 - project->Landuse[i].sweepRemoval *
+                             project->Landuse[i].washoffFunc[p].sweepEffic);
                 newBuildup = MIN(oldBuildup, newBuildup);
                 newBuildup = MAX(0.0, newBuildup);
-                Subcatch[j].landFactor[i].buildup[p] = newBuildup;
+                project->Subcatch[j].landFactor[i].buildup[p] = newBuildup;
 
                 // --- update mass balance totals
-                massbal_updateLoadingTotals(SWEEPING_LOAD, p,
+                massbal_updateLoadingTotals(project,SWEEPING_LOAD, p,
                                             oldBuildup - newBuildup);
             }
         }
@@ -182,7 +182,7 @@ void surfqual_sweepBuildup(int j, DateTime aDate)
 
 //=============================================================================
 
-void  surfqual_getWashoff(int j, double runoff, double tStep)
+void  surfqual_getWashoff(Project* project, int j, double runoff, double tStep)
 //
 //  Input:   j = subcatchment index
 //           runoff = total subcatchment runoff before internal re-routing or
@@ -211,84 +211,84 @@ void  surfqual_getWashoff(int j, double runoff, double tStep)
     double area;             // subcatchment area (ft2)
 
     // --- return if there is no area or no pollutants
-    area = Subcatch[j].area;
-    if ( Nobjects[POLLUT] == 0 || area == 0.0 ) return;
+    area = project->Subcatch[j].area;
+    if ( project->Nobjects[POLLUT] == 0 || area == 0.0 ) return;
 
     // --- find contributions from washoff, runon and wet precip. to OutflowLoad
-    for (p = 0; p < Nobjects[POLLUT]; p++) OutflowLoad[p] = 0.0;
-    findWashoffLoads(j, runoff);
-    findPondedLoads(j, tStep);
-    findLidLoads(j, tStep);
+    for (p = 0; p < project->Nobjects[POLLUT]; p++) project->OutflowLoad[p] = 0.0;
+    findWashoffLoads(project,j, runoff);
+    findPondedLoads(project,j, tStep);
+    findLidLoads(project,j, tStep);
 
     // --- contribution from direct rainfall on LID areas
-    vLidRain = Subcatch[j].rainfall * Subcatch[j].lidArea * tStep;
+    vLidRain = project->Subcatch[j].rainfall * project->Subcatch[j].lidArea * tStep;
 
     // --- contribution from upstream runon onto LID areas
     //     (only if LIDs occupy full subcatchment)
     vLidRunon = 0.0;
-    if ( area == Subcatch[j].lidArea )
+    if ( area == project->Subcatch[j].lidArea )
     {
-        vLidRunon = Subcatch[j].runon * area * tStep;
+        vLidRunon = project->Subcatch[j].runon * area * tStep;
     }
 
     // --- runoff volume before LID treatment (ft3)
-    //     (Voutflow, computed in subcatch_getRunoff, is subcatchment
+    //     (project->Voutflow, computed in subcatch_getRunoff, is subcatchment
     //      runoff volume before LID treatment)
-    vOut1 = Voutflow + vLidRain + vLidRunon;             
+    vOut1 = project->Voutflow + vLidRain + vLidRunon;             
 
     // --- surface runoff + LID drain flow volume leaving the subcatchment
     //     (Subcatch.newRunoff, computed in subcatch_getRunoff, includes
     //      any surface runoff reduction from LID treatment)
-    vSurfOut = Subcatch[j].newRunoff * tStep;
-    vOut2 = vSurfOut + VlidDrain;
+    vSurfOut = project->Subcatch[j].newRunoff * tStep;
+    vOut2 = vSurfOut + project->VlidDrain;
 
     // --- determine if subcatchment outflow is below a small cutoff
     hasOutflow = (vOut2 > MIN_RUNOFF * area * tStep);
 
     // --- for each pollutant
-    for (p = 0; p < Nobjects[POLLUT]; p++)
+    for (p = 0; p < project->Nobjects[POLLUT]; p++)
     {
         // --- convert washoff load to a concentration
         cOut = 0.0;
-        if ( vOut1 > 0.0 ) cOut = OutflowLoad[p] / vOut1;
+        if ( vOut1 > 0.0 ) cOut = project->OutflowLoad[p] / vOut1;
 
         // --- assign any difference between pre- and post-LID
         //     loads (with LID return flow included) to BMP removal
-        if ( Subcatch[j].lidArea > 0.0 )
+        if ( project->Subcatch[j].lidArea > 0.0 )
         {    
-            massLoad = cOut * (vOut1 - vOut2 - VlidReturn) * Pollut[p].mcf;
-            massbal_updateLoadingTotals(BMP_REMOVAL_LOAD, p, massLoad);
+            massLoad = cOut * (vOut1 - vOut2 - project->VlidReturn) * project->Pollut[p].mcf;
+            massbal_updateLoadingTotals(project,BMP_REMOVAL_LOAD, p, massLoad);
         }
 
         // --- update subcatchment's cumulative runoff load in lbs (or kg)
-        massLoad = cOut * vOut2 * Pollut[p].mcf;
-        Subcatch[j].totalLoad[p] += massLoad;
+        massLoad = cOut * vOut2 * project->Pollut[p].mcf;
+        project->Subcatch[j].totalLoad[p] += massLoad;
 
         // --- update mass balance for surface runoff load routed to a
         //     conveyance system node
         //     (loads from LID drains are accounted for below since they
         //     can go to different outlets than parent subcatchment)
-        if ( (Subcatch[j].outNode >= 0 || Subcatch[j].outSubcatch == j) )
+        if ( (project->Subcatch[j].outNode >= 0 || project->Subcatch[j].outSubcatch == j) )
         {
-            massLoad = cOut * vSurfOut * Pollut[p].mcf;
-            massbal_updateLoadingTotals(RUNOFF_LOAD, p, massLoad);
+            massLoad = cOut * vSurfOut * project->Pollut[p].mcf;
+            massbal_updateLoadingTotals(project,RUNOFF_LOAD, p, massLoad);
         }
         
         // --- save new washoff concentration
         if ( !hasOutflow ) cOut = 0.0;
-        Subcatch[j].newQual[p] = cOut / LperFT3;
+        project->Subcatch[j].newQual[p] = cOut / LperFT3;
     }
 
     // --- add contribution of LID drain flows to mass balance 
-    if ( Subcatch[j].lidArea > 0.0 )
+    if ( project->Subcatch[j].lidArea > 0.0 )
     {
-        lid_addDrainLoads(j, Subcatch[j].newQual, tStep);
+        lid_addDrainLoads(project,j, project->Subcatch[j].newQual, tStep);
     }
 }
 
 //=============================================================================
 
-double surfqual_getWtdWashoff(int j, int p, double f)
+double surfqual_getWtdWashoff(Project* project, int j, int p, double f)
 //
 //  Input:   j = subcatchment index
 //           p = pollutant index
@@ -297,13 +297,13 @@ double surfqual_getWtdWashoff(int j, int p, double f)
 //  Purpose: finds wtd. combination of old and new washoff for a pollutant.
 //
 {
-    return (1.0 - f) * Subcatch[j].oldRunoff * Subcatch[j].oldQual[p] +
-           f * Subcatch[j].newRunoff *Subcatch[j].newQual[p];
+    return (1.0 - f) * project->Subcatch[j].oldRunoff * project->Subcatch[j].oldQual[p] +
+           f * project->Subcatch[j].newRunoff *project->Subcatch[j].newQual[p];
 }
 
 //=============================================================================
 
-void findPondedLoads(int j, double tStep)
+void findPondedLoads(Project* project, int j, double tStep)
 //
 //  Input:   j = subcatchment index
 //           tStep = time step (sec)
@@ -325,62 +325,62 @@ void findPondedLoads(int j, double tStep)
            nonLidArea;  // non-LID area (ft2)
 
     // --- subcatchment and non-LID areas
-    if ( Subcatch[j].area == Subcatch[j].lidArea ) return;
-    fullArea = Subcatch[j].area;
-    nonLidArea = fullArea - Subcatch[j].lidArea;
+    if ( project->Subcatch[j].area == project->Subcatch[j].lidArea ) return;
+    fullArea = project->Subcatch[j].area;
+    nonLidArea = fullArea - project->Subcatch[j].lidArea;
 
     // --- compute precip. volume over time step (ft3)
-    vRain = Subcatch[j].rainfall * nonLidArea * tStep;
+    vRain = project->Subcatch[j].rainfall * nonLidArea * tStep;
 
-    for (p = 0; p < Nobjects[POLLUT]; p++)
+    for (p = 0; p < project->Nobjects[POLLUT]; p++)
     {
         // --- update mass balance for wet deposition
-        wRain = Pollut[p].pptConcen * LperFT3 * vRain;
-        massbal_updateLoadingTotals(DEPOSITION_LOAD, p, wRain * Pollut[p].mcf);
+        wRain = project->Pollut[p].pptConcen * LperFT3 * vRain;
+        massbal_updateLoadingTotals(project,DEPOSITION_LOAD, p, wRain * project->Pollut[p].mcf);
 
         // --- surface is dry and has no runon -- add any remaining mass
         //     to overall mass balance's FINAL_LOAD category
-        if ( Vinflow == 0.0 )
+        if ( project->Vinflow == 0.0 )
         {
-            massbal_updateLoadingTotals(FINAL_LOAD, p,
-                Subcatch[j].pondedQual[p] * Pollut[p].mcf);
-            Subcatch[j].pondedQual[p] = 0.0;
+            massbal_updateLoadingTotals(project,FINAL_LOAD, p,
+                project->Subcatch[j].pondedQual[p] * project->Pollut[p].mcf);
+            project->Subcatch[j].pondedQual[p] = 0.0;
         }
         else
         {
             // --- find concen. of ponded water
             //     (newQual[] temporarily holds runon mass loading)
-            wRunon = Subcatch[j].newQual[p] * tStep;
-            wPonded = Subcatch[j].pondedQual[p] + wRain + wRunon;
-            cPonded = wPonded / Vinflow;
+            wRunon = project->Subcatch[j].newQual[p] * tStep;
+            wPonded = project->Subcatch[j].pondedQual[p] + wRain + wRunon;
+            cPonded = wPonded / project->Vinflow;
 
             // --- mass lost to infiltration
-            wInfil = cPonded * Vinfil;
+            wInfil = cPonded * project->Vinfil;
             wInfil = MIN(wInfil, wPonded);
-            massbal_updateLoadingTotals(INFIL_LOAD, p, wInfil * Pollut[p].mcf);
+            massbal_updateLoadingTotals(project,INFIL_LOAD, p, wInfil * project->Pollut[p].mcf);
             wPonded -= wInfil;
 
             // --- mass lost to runoff
-            wOutflow = cPonded * Voutflow;
+            wOutflow = cPonded * project->Voutflow;
             wOutflow = MIN(wOutflow, wPonded);
             wPonded -= wOutflow;
 
             // --- reduce outflow load by average BMP removal
-            bmpRemoval = landuse_getAvgBmpEffic(j, p) * wOutflow;
-            massbal_updateLoadingTotals(BMP_REMOVAL_LOAD, p,
-                bmpRemoval*Pollut[p].mcf);
+            bmpRemoval = landuse_getAvgBmpEffic(project,j, p) * wOutflow;
+            massbal_updateLoadingTotals(project,BMP_REMOVAL_LOAD, p,
+                bmpRemoval*project->Pollut[p].mcf);
             wOutflow -= bmpRemoval;
 
             // --- update ponded mass (using newly computed ponded depth)
-            Subcatch[j].pondedQual[p] = cPonded * subcatch_getDepth(j) * nonLidArea;
-            OutflowLoad[p] += wOutflow;
+			project->Subcatch[j].pondedQual[p] = cPonded * subcatch_getDepth(project, j) * nonLidArea;
+            project->OutflowLoad[p] += wOutflow;
         }
     }
 }
 
 //=============================================================================
 
-void  findWashoffLoads(int j, double runoff)
+void  findWashoffLoads(Project* project, int j, double runoff)
 //
 //  Input:   j = subcatchment index
 //           runoff = subcatchment runoff before internal re-routing or
@@ -394,46 +394,46 @@ void  findWashoffLoads(int j, double runoff)
            p,                          // pollutant index
            k;                          // co-pollutant index
     double w,                          // co-pollutant load (mass)
-           area = Subcatch[j].area;    // subcatchment area (ft2)
+           area = project->Subcatch[j].area;    // subcatchment area (ft2)
     
     // --- examine each land use
     if ( runoff < MIN_RUNOFF ) return;
-    for (i = 0; i < Nobjects[LANDUSE]; i++)
+    for (i = 0; i < project->Nobjects[LANDUSE]; i++)
     {
-        if ( Subcatch[j].landFactor[i].fraction > 0.0 )
+        if ( project->Subcatch[j].landFactor[i].fraction > 0.0 )
         {
             // --- compute load generated by washoff function
-            for (p = 0; p < Nobjects[POLLUT]; p++)
+            for (p = 0; p < project->Nobjects[POLLUT]; p++)
             {
-                OutflowLoad[p] += landuse_getWashoffLoad(
-                    i, p, area, Subcatch[j].landFactor, runoff, Voutflow);
+                project->OutflowLoad[p] += landuse_getWashoffLoad(project,
+                    i, p, area, project->Subcatch[j].landFactor, runoff, project->Voutflow);
             }
         }
     }
 
     // --- compute contribution from any co-pollutant
-    for (p = 0; p < Nobjects[POLLUT]; p++)
+    for (p = 0; p < project->Nobjects[POLLUT]; p++)
     {
         // --- check if pollutant p has a co-pollutant k
-        k = Pollut[p].coPollut;
+        k = project->Pollut[p].coPollut;
         if ( k >= 0 )
         {
             // --- compute addition to washoff from co-pollutant
-            w = Pollut[p].coFraction * OutflowLoad[k];
+            w = project->Pollut[p].coFraction * project->OutflowLoad[k];
 
             // --- add this washoff to buildup mass balance totals
             //     so that things will balance
-            massbal_updateLoadingTotals(BUILDUP_LOAD, p, w * Pollut[p].mcf);
+            massbal_updateLoadingTotals(project,BUILDUP_LOAD, p, w * project->Pollut[p].mcf);
 
             // --- then also add it to the total washoff load
-            OutflowLoad[p] += w;
+            project->OutflowLoad[p] += w;
         }
     }
 }
 
 //=============================================================================
 
-void  findLidLoads(int j, double tStep)
+void  findLidLoads(Project* project, int j, double tStep)
 //
 //  Input:   j = subcatchment index
 //           tStep = time step (sec)
@@ -450,25 +450,25 @@ void  findLidLoads(int j, double tStep)
            wLidRunon;        // runon pollut. load seen by LID areas (mass)
 
     // --- find rainfall volume seen by LIDs
-    lidArea = Subcatch[j].lidArea;
+    lidArea = project->Subcatch[j].lidArea;
     if ( lidArea == 0.0 ) return;
-    vLidRain = Subcatch[j].rainfall * lidArea * tStep;
+    vLidRain = project->Subcatch[j].rainfall * lidArea * tStep;
 
     // --- use upstream runon load only if LIDs occupy full subcatchment
     //     (for partial LID coverage, runon loads were directed onto non-LID area)
-    useRunon = (lidArea == Subcatch[j].area);
+    useRunon = (lidArea == project->Subcatch[j].area);
 
-    for (p = 0; p < Nobjects[POLLUT]; p++)
+    for (p = 0; p < project->Nobjects[POLLUT]; p++)
     {
         // --- wet deposition load on LID area
-        wLidRain = Pollut[p].pptConcen * vLidRain * LperFT3;
-        massbal_updateLoadingTotals(DEPOSITION_LOAD, p, wLidRain * Pollut[p].mcf);
+        wLidRain = project->Pollut[p].pptConcen * vLidRain * LperFT3;
+        massbal_updateLoadingTotals(project,DEPOSITION_LOAD, p, wLidRain * project->Pollut[p].mcf);
 
         // --- runon load to LID area from other subcatchments
-        if ( useRunon ) wLidRunon = Subcatch[j].newQual[p] * tStep;
+        if ( useRunon ) wLidRunon = project->Subcatch[j].newQual[p] * tStep;
         else            wLidRunon = 0.0;
 
         // --- update total outflow pollutant load (mass)
-        OutflowLoad[p] += wLidRain + wLidRunon;
+        project->OutflowLoad[p] += wLidRain + wLidRunon;
     }
 }

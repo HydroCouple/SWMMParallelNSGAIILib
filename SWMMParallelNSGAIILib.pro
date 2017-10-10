@@ -34,7 +34,8 @@ HEADERS += \
     include/swmm_core/odesolve.h \
     include/swmm_core/swmm5.h \
     include/swmm_core/text.h \
-    include/swmm_core/swmm5_iface.h
+    include/swmm_core/swmm5_iface.h \
+    include/swmm_core/dataexchangecache.h
 
 CONFIG(debug, debug|release){
    DESTDIR = ./build/debug
@@ -79,7 +80,6 @@ SOURCES += \
     src/swmm_core/table.c \
     src/swmm_core/kinwave.c \
     src/swmm_core/lidproc.c \
-    src/swmm_core/swmm5.c \
     src/swmm_core/findroot.c \
     src/swmm_core/node.c \
     src/swmm_core/rain.c \
@@ -107,7 +107,9 @@ SOURCES += \
     src/swmm_core/flowrout.c \
     src/swmm_core/roadway.c \
     src/swmm_core/xsect.c \
-    src/swmm_core/swmm5_iface.c
+    src/swmm_core/swmm5_iface.c \
+    src/swmm_core/dataexchangecache.cpp \
+    src/swmm_core/swmm5.c
 
 DISTFILES += \
     include/swmm_core/xsect.dat

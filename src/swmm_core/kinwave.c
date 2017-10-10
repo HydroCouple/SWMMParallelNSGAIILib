@@ -27,15 +27,15 @@ static const double WX      = 0.6;     // distance weighting
 static const double WT      = 0.6;     // time weighting
 static const double EPSIL   = 0.001;   // convergence criterion
 
-//-----------------------------------------------------------------------------
-//  Shared variables
-//-----------------------------------------------------------------------------
-static double   Beta1;
-static double   C1;
-static double   C2;
-static double   Afull;
-static double   Qfull;
-static TXsect*  pXsect;
+////-----------------------------------------------------------------------------
+////  Shared variables
+////-----------------------------------------------------------------------------
+//static double   project->Beta1;
+//static double   project->C1;
+//static double   project->C2;
+//static double   project->Afull;
+//static double   project->Qfull;
+//static TXsect*  project->pXsect;
 
 //-----------------------------------------------------------------------------
 //  External functions (declared in funcs.h)
@@ -45,12 +45,12 @@ static TXsect*  pXsect;
 //-----------------------------------------------------------------------------
 //  Local functions
 //-----------------------------------------------------------------------------
-static int   solveContinuity(double qin, double ain, double* aout);
-static void  evalContinuity(double a, double* f, double* df, void* p);
+static int   solveContinuity(Project* project, double qin, double ain, double* aout);
+static void  evalContinuity(Project* project, double a, double* f, double* df, void* p);
 
 //=============================================================================
 
-int kinwave_execute(int j, double* qinflow, double* qoutflow, double tStep)
+int kinwave_execute(Project* project, int j, double* qinflow, double* qoutflow, double tStep)
 //
 //  Input:   j = link index
 //           qinflow = inflow at current time (cfs)
@@ -78,37 +78,37 @@ int kinwave_execute(int j, double* qinflow, double* qoutflow, double tStep)
 
     // --- no routing for non-conduit link
     (*qoutflow) = (*qinflow); 
-    if ( Link[j].type != CONDUIT ) return result;
+    if ( project->Link[j].type != CONDUIT ) return result;
 
     // --- no routing for dummy xsection
-    if ( Link[j].xsect.type == DUMMY ) return result;
+    if ( project->Link[j].xsect.type == DUMMY ) return result;
 
     // --- assign module-level variables
-    pXsect = &Link[j].xsect;
-    Qfull = Link[j].qFull;
-    Afull = Link[j].xsect.aFull;
-    k = Link[j].subIndex;
-    Beta1 = Conduit[k].beta / Qfull;
+    project->pXsect = &project->Link[j].xsect;
+    project->Qfull = project->Link[j].qFull;
+    project->Afull = project->Link[j].xsect.aFull;
+    k = project->Link[j].subIndex;
+    project->Beta1 = project->Conduit[k].beta / project->Qfull;
  
     // --- normalize previous flows
-    q1 = Conduit[k].q1 / Qfull;
-    q2 = Conduit[k].q2 / Qfull;
+    q1 = project->Conduit[k].q1 / project->Qfull;
+    q2 = project->Conduit[k].q2 / project->Qfull;
 
     // --- normalize inflow                                                    //(5.1.008)
-    qin = (*qinflow) / Conduit[k].barrels / Qfull;
+    qin = (*qinflow) / project->Conduit[k].barrels / project->Qfull;
 
     // --- compute evaporation and infiltration loss rate
-	q3 = link_getLossRate(j, qin*Qfull, tStep) / Qfull;                        //(5.1.008)
+	q3 = link_getLossRate(project, j, qin*project->Qfull, tStep) / project->Qfull;                        //(5.1.008)
 
     // --- normalize previous areas
-    a1 = Conduit[k].a1 / Afull;
-    a2 = Conduit[k].a2 / Afull;
+    a1 = project->Conduit[k].a1 / project->Afull;
+    a2 = project->Conduit[k].a2 / project->Afull;
 
     // --- use full area when inlet flow >= full flow
     if ( qin >= 1.0 ) ain = 1.0;
 
     // --- get normalized inlet area corresponding to inlet flow
-    else ain = xsect_getAofS(pXsect, qin/Beta1) / Afull;
+    else ain = xsect_getAofS(project, project->pXsect, qin/project->Beta1) / project->Afull;
 
     // --- check for no flow
     if ( qin <= TINY && q2 <= TINY )
@@ -121,55 +121,55 @@ int kinwave_execute(int j, double* qinflow, double* qoutflow, double tStep)
     else
     {
         // --- compute constant factors
-        dxdt = link_getLength(j) / tStep * Afull / Qfull;
+		dxdt = link_getLength(project, j) / tStep * project->Afull / project->Qfull;
         dq   = q2 - q1;
-        C1   = dxdt * WT / WX;
-        C2   = (1.0 - WT) * (ain - a1);
-        C2   = C2 - WT * a2;
-        C2   = C2 * dxdt / WX;
-        C2   = C2 + (1.0 - WX) / WX * dq - qin;
-        C2   = C2 + q3 / WX;
+        project->C1   = dxdt * WT / WX;
+        project->C2   = (1.0 - WT) * (ain - a1);
+        project->C2   = project->C2 - WT * a2;
+        project->C2   = project->C2 * dxdt / WX;
+        project->C2   = project->C2 + (1.0 - WX) / WX * dq - qin;
+        project->C2   = project->C2 + q3 / WX;
 
         // --- starting guess for aout is value from previous time step
         aout = a2;
 
         // --- solve continuity equation for aout
-        result = solveContinuity(qin, ain, &aout);
+        result = solveContinuity(project,qin, ain, &aout);
 
         // --- report error if continuity eqn. not solved
         if ( result == -1 )
         {
-            report_writeErrorMsg(ERR_KINWAVE, Link[j].ID);
+            report_writeErrorMsg(project,ERR_KINWAVE, project->Link[j].ID);
             return 1;
         }
         if ( result <= 0 ) result = 1;
 
         // --- compute normalized outlet flow from outlet area
-        qout = Beta1 * xsect_getSofA(pXsect, aout*Afull);
+        qout = project->Beta1 * xsect_getSofA(project, project->pXsect, aout*project->Afull);
         if ( qin > 1.0 ) qin = 1.0;
     }
 
     // --- save new flows and areas
-    Conduit[k].q1 = qin * Qfull;
-    Conduit[k].a1 = ain * Afull;
-    Conduit[k].q2 = qout * Qfull;
-    Conduit[k].a2 = aout * Afull;
-    Conduit[k].fullState =
-        link_getFullState(Conduit[k].a1, Conduit[k].a2, Afull);                //(5.1.008)
-    (*qinflow)  = Conduit[k].q1 * Conduit[k].barrels;
-    (*qoutflow) = Conduit[k].q2 * Conduit[k].barrels;
+    project->Conduit[k].q1 = qin * project->Qfull;
+    project->Conduit[k].a1 = ain * project->Afull;
+    project->Conduit[k].q2 = qout * project->Qfull;
+    project->Conduit[k].a2 = aout * project->Afull;
+    project->Conduit[k].fullState =
+        link_getFullState(project->Conduit[k].a1, project->Conduit[k].a2, project->Afull);                //(5.1.008)
+    (*qinflow)  = project->Conduit[k].q1 * project->Conduit[k].barrels;
+    (*qoutflow) = project->Conduit[k].q2 * project->Conduit[k].barrels;
     return result;
 }
 
 //=============================================================================
 
-int solveContinuity(double qin, double ain, double* aout)
+int solveContinuity(Project* project, double qin, double ain, double* aout)
 //
 //  Input:   qin = upstream normalized flow
 //           ain = upstream normalized area
 //           aout = downstream normalized area
 //  Output:  new value for aout; returns an error code
-//  Purpose: solves continuity equation f(a) = Beta1*S(a) + C1*a + C2 = 0
+//  Purpose: solves continuity equation f(a) = project->Beta1*S(a) + project->C1*a + project->C2 = 0
 //           for 'a' using the Newton-Raphson root finder function.
 //           Return code has the following meanings:
 //           >= 0 number of function evaluations used
@@ -177,8 +177,8 @@ int solveContinuity(double qin, double ain, double* aout)
 //           -2   flow always above max. flow
 //           -3   flow always below zero
 //
-//     Note: pXsect (pointer to conduit's cross-section), and constants Beta1,
-//           C1, and C2 are module-level shared variables assigned values
+//     Note: project->pXsect (pointer to conduit's cross-section), and constants project->Beta1,
+//           project->C1, and project->C2 are module-level shared variables assigned values
 //           in kinwave_execute().
 //
 {
@@ -191,13 +191,13 @@ int solveContinuity(double qin, double ain, double* aout)
 
     // --- set upper bound to area at full flow
     aHi = 1.0;
-    fHi = 1.0 + C1 + C2;
+    fHi = 1.0 + project->C1 + project->C2;
 
     // --- try setting lower bound to area where section factor is maximum
-    aLo = xsect_getAmax(pXsect) / Afull;
+    aLo = xsect_getAmax(project->pXsect) / project->Afull;
     if ( aLo < aHi )
     {
-        fLo = ( Beta1 * pXsect->sMax ) + (C1 * aLo) + C2;
+        fLo = ( project->Beta1 * project->pXsect->sMax ) + (project->C1 * aLo) + project->C2;
     }
     else fLo = fHi;
 
@@ -207,7 +207,7 @@ int solveContinuity(double qin, double ain, double* aout)
         aHi = aLo;
         fHi = fLo;
         aLo = 0.0;
-        fLo = C2;
+        fLo = project->C2;
     }
 
     // --- proceed with search for root if fLo and fHi have different signs
@@ -228,7 +228,7 @@ int solveContinuity(double qin, double ain, double* aout)
         // --- call the Newton root finder method passing it the 
         //     evalContinuity function to evaluate the function
         //     and its derivatives
-        n = findroot_Newton(aLo, aHi, aout, tol, evalContinuity, NULL);
+        n = findroot_Newton(project, aLo, aHi, aout, tol, evalContinuity, NULL);
 
         // --- check if root finder succeeded
         if ( n <= 0 ) n = -1;
@@ -254,7 +254,7 @@ int solveContinuity(double qin, double ain, double* aout)
 
 //=============================================================================
 
-void evalContinuity(double a, double* f, double* df, void* p)
+void evalContinuity(Project* project, double a, double* f, double* df, void* p)
 //
 //  Input:   a = outlet normalized area
 //  Output:  f = value of continuity eqn.
@@ -263,8 +263,8 @@ void evalContinuity(double a, double* f, double* df, void* p)
 //           w.r.t. normalized area for link with normalized outlet area 'a'.
 //
 {
-    *f  = (Beta1 * xsect_getSofA(pXsect, a*Afull)) + (C1 * a) + C2;
-    *df = (Beta1 * Afull * xsect_getdSdA(pXsect, a*Afull)) + C1;
+	*f = (project->Beta1 * xsect_getSofA(project, project->pXsect, a*project->Afull)) + (project->C1 * a) + project->C2;
+	*df = (project->Beta1 * project->Afull * xsect_getdSdA(project, project->pXsect, a*project->Afull)) + project->C1;
 }
 
 //=============================================================================

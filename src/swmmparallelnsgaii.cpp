@@ -1,9 +1,12 @@
 
-#include <vector>
-#include <string>
+# include <vector>
+# include <string>
 # include <sys/stat.h>
-#include "swmmparallelnsgaii.h"
-
+# include <fstream>
+# include <unordered_map>
+# include "swmmparallelnsgaii.h"
+# include "swmm5_iface.h"
+# include "datetime.h"
 
 std::vector<std::string> splitText(const std::string &text, const std::string& delim)
 {
@@ -39,9 +42,12 @@ std::string fileExtension(const std::string& filePath)
 bool replace(std::string& str, const std::string& from, const std::string& to)
 {
   size_t start_pos = str.find(from);
+
   if(start_pos == std::string::npos)
     return false;
+
   str.replace(start_pos, from.length(), to);
+
   return true;
 }
 
@@ -65,65 +71,306 @@ bool fileExists(const std::string& name)
   return (stat (name.c_str(), &buffer) == 0);
 }
 
-
-
-
-void SWMMParallelNSGAII(int gen, int nreal, double *xreal, int nbin, double *xbin, int *nbits,
-                        int **gene, int nobj, double *obj, int ncon, double *constr, const std::list<std::string>& optionalArgs)
+std::vector<std::pair<double, double>> readTimeSeriesFile(const std::string & timeSeriesFile)
 {
-  int i, j;
-  int u[11];
-  int v[11];
-  double f1, f2, g, h;
+  auto found = loadedTimeSeriesFiles.find(timeSeriesFile);
 
-  for (i=0; i<11; i++)
+  if(found != loadedTimeSeriesFiles.end())
   {
-    u[i] = 0;
+    return loadedTimeSeriesFiles[timeSeriesFile];
   }
-
-  for (j=0; j<30; j++)
+  else
   {
-    if (gene[0][j] == 1)
-    {
-      u[0]++;
-    }
-  }
 
-  for (i=1; i<11; i++)
-  {
-    for (j=0; j<4; j++)
+    std::vector<std::pair<double, double>> timeSeries;
+
+    std::fstream readFileStream;
+    readFileStream.open(timeSeriesFile,std::fstream::in);
+
+    std::string line;
+
+    if(readFileStream.is_open())
     {
-      if (gene[i][j] == 1)
+      std::getline(readFileStream,line);
+
+      while (std::getline(readFileStream,line))
       {
-        u[i]++;
+        std::vector<std::string> split = splitText(line, ",");
+        double value = stof(split[1]);
+
+        replaceAll(split[0],"\"","");
+
+        std::vector<std::string> dateTime = splitText(split[0], " ");
+        std::vector<std::string> date = splitText(dateTime[0], "-");
+        std::vector<std::string> time = splitText(dateTime[1], ":");
+
+        double dateTimeDbl = datetime_encodeDate(std::stoi(date[0]), std::stoi(date[1]), std::stoi(date[2])) +
+            datetime_encodeTime(std::stoi(time[0]), std::stoi(time[1]), std::stoi(time[2]));
+
+        timeSeries.push_back(std::pair<double,double>(dateTimeDbl,value));
+      }
+    }
+
+    loadedTimeSeriesFiles[timeSeriesFile] = timeSeries;
+
+    return timeSeries;
+  }
+}
+
+std::vector<std::pair<double, double>> readSWMMTimeSeries(IFaceData *faceData, int iType, int iIndex, int vIndex)
+{
+  std::vector<std::pair<double, double>> timeSeries;
+
+  for(int i = 0; i < faceData->SWMM_Nperiods; i++)
+  {
+    double dateTime  = faceData->SWMM_StartDate + (faceData->SWMM_ReportStep * i) /(24.0 * 60 * 60);
+    float value = 0.0;
+    GetSwmmResult(faceData, iType, iIndex, vIndex,i+1, &value);
+
+    timeSeries.push_back(std::pair<double,double>(dateTime,value));
+  }
+
+  return timeSeries;
+}
+
+double CalcRMS(const std::vector<std::pair<double, double>> & obs,
+               const std::vector<std::pair<double, double>> & sim)
+{
+
+
+  double value = 0.0;
+  int currentObs = 0;
+  double count = 0;
+
+  for(size_t i = 0; i < sim.size() ; i++)
+  {
+    double simDT = sim[i].first;
+
+    for(size_t j = currentObs; j < obs.size() - 1; j++)
+    {
+      double obsDT1 = obs[j].first;
+      double obsDT2 = obs[j+1].second;
+
+      if(simDT >= obsDT1 && simDT < obsDT2)
+      {
+        double obsv1 = obs[j].second;
+        double obsv2 = obs[j+1].second;
+
+        double est = obsv1 + ((simDT - obsDT1)/(obsDT2 - obsDT1))* (obsv2 - obsv1);
+        est = sim[i].second - est;
+        value += est * est;
+        count = count + 1.0;
+
+        currentObs = j;
+        break;
       }
     }
   }
 
-  f1 = 1.0 + u[0];
+  value = count > 0.0 ? sqrt(value/count) : std::numeric_limits<double>::max();
 
-  for (i=1; i<11; i++)
+  return value;
+}
+
+void RMS(const std::vector<std::string> &options, double & value, IFaceData *faceData)
+{
+  std::vector<std::pair<double,double>> obs = readTimeSeriesFile(options[4]);
+  std::vector<std::pair<double,double>> sim = readSWMMTimeSeries(faceData, stoi(options[0]), stoi(options[1]), stoi(options[2]));
+
+  value = CalcRMS(obs,sim);
+}
+
+double CalcVolumeError(const std::vector<std::pair<double, double>> & obs,
+                       const std::vector<std::pair<double, double>> & sim)
+{
+
+  double minDate = std::min(obs[0].first, sim[0].first);
+  double maxDate = std::min(obs[obs.size() -1].first, sim[sim.size() - 1].first);
+
+  double obsVol = 0.0;
+  double simVol = 0.0;
+
+  for(size_t i = 1; i < obs.size() ; i++)
   {
-    if (u[i] < 5)
+    double dt1 = obs[i-1].first;
+    double dt2 = obs[i].first;
+
+    if(dt1 >= minDate && dt2 <= maxDate)
     {
-      v[i] = 2 + u[i];
-    }
-    else
-    {
-      v[i] = 1;
+      obsVol += fabs(0.5 * (dt2 - dt1) * (obs[i].second - obs[i-1].second)) + fabs( std::min(obs[i].second, obs[i-1].second) * (dt2 - dt1));
     }
   }
 
-  g = 0;
-
-  for (i=1; i<11; i++)
+  for(size_t i = 1; i < sim.size() ; i++)
   {
-    g += v[i];
+    double dt1 = sim[i-1].first;
+    double dt2 = sim[i].first;
+
+    if(dt1 >= minDate && dt2 <= maxDate)
+    {
+      simVol += fabs(0.5 * (dt2 - dt1) * (sim[i].second - sim[i-1].second)) + fabs( std::min(sim[i].second, sim[i-1].second) * (dt2 - dt1));
+    }
   }
 
-  h = 1.0/f1;
-  f2 = g*h;
-  obj[0] = f1;
-  obj[1] = f2;
-  return;
+  return simVol - obsVol;
+
+}
+
+void VolumeError(const std::vector<std::string> &options, double & value, IFaceData *faceData)
+{
+  std::vector<std::pair<double,double>> obs = readTimeSeriesFile(options[4]);
+  std::vector<std::pair<double,double>> sim = readSWMMTimeSeries(faceData, stoi(options[0]), stoi(options[1]), stoi(options[2]));
+
+  value = CalcVolumeError(obs,sim);
+}
+
+void SWMMParallelNSGAII(int gen, int indIndex, int nreal, double *xreal, int nbin, double *xbin, int *nbits,
+                        int **gene, int nobj, double *obj, int ncon, double *constr, const std::vector<std::string>& optionalArgs)
+{
+
+  std::string swmminputfile = optionalArgs[0];
+
+  if(fileExists(swmminputfile))
+  {
+
+    std::vector<std::string> variables = splitText(optionalArgs[1], " ");
+    std::vector<std::string> varmultiplierS = splitText(optionalArgs[2], " ");
+
+    if(variables.size() != varmultiplierS.size())
+    {
+      abort();
+    }
+
+    std::vector<int> varmultiplier;
+    bool found = false;
+
+    for(int i = 0 ; i < varmultiplierS.size() ; i++)
+    {
+      int tempm = stoi(varmultiplierS[i]);
+      varmultiplier.push_back(tempm);
+
+      if(tempm > 0)
+        found = true;
+    }
+
+    std::string line;
+
+
+    std::unordered_map<std::string,double> multiplierTable;
+
+    if(found == true)
+    {
+      std::fstream multFileStream;
+      multFileStream.open(optionalArgs[3],std::fstream::in);
+
+      if(multFileStream.is_open())
+      {
+        std::getline(multFileStream, line);
+
+        while (std::getline(multFileStream,line))
+        {
+          std::vector<std::string> cols = splitText(line, " ");
+
+          multiplierTable[cols[0]] = stof(cols[1]);
+        }
+      }
+
+      multFileStream.close();
+    }
+
+
+    std::string extension = fileExtension(swmminputfile);
+    std::string newswmmfile = swmminputfile;
+    replace(newswmmfile,extension, "gen_" + std::to_string(gen) + "_ind" + std::to_string(indIndex) + extension);
+
+    std::string reportfile = newswmmfile;
+    replace(reportfile,extension,".rpt");
+
+    std::string outputfile = newswmmfile;
+    replace(outputfile,extension,".out");
+
+    //read and replace variables
+
+    std::fstream readFileStream;
+    readFileStream.open(swmminputfile,std::fstream::in);
+
+    std::fstream writeFileStream;
+    writeFileStream.open(newswmmfile,std::fstream::out | std::fstream::trunc);
+
+    if(readFileStream.is_open() && writeFileStream.is_open())
+    {
+      std::string allLines;
+
+      while (std::getline(readFileStream,line))
+      {
+
+        allLines += "\n" + line;
+      }
+
+      for(int i = 0; i < variables.size() ; i++)
+      {
+        std::string variable = variables[i];
+        int varmult = varmultiplier[i];
+
+        if(varmult > 0)
+        {
+          for(int f = 0 ; f < varmultiplier[i]; f++)
+          {
+            std::string newVarName = variable + "_" + std::to_string(f);
+            double newValue =  multiplierTable[newVarName] * (1.0 + xreal[i] / 100);
+            replaceAll(allLines, newVarName, std::to_string(newValue));
+          }
+        }
+        else
+        {
+          replaceAll(allLines, variable, std::to_string(xreal[i]));
+        }
+      }
+
+      writeFileStream << allLines;
+    }
+
+    readFileStream.close();
+    writeFileStream.flush();
+    writeFileStream.close();
+
+    char *inpF = new char[newswmmfile.length() + 1] ;
+    std::strcpy (inpF, newswmmfile.c_str());
+
+    char *inpO = new char[outputfile.length() + 1] ;
+    std::strcpy (inpO, outputfile.c_str());
+
+    char *inpR = new char[reportfile.length() + 1] ;
+    std::strcpy (inpR, reportfile.c_str());
+
+    RunSwmmDll(inpF,inpR,inpO);
+
+    int error;
+    IFaceData *faceData = OpenSwmmOutFile(inpO ,&error);
+
+    delete[] inpF;
+    delete[] inpO;
+    delete[] inpR;
+
+    for(int i = 4; i < optionalArgs.size(); i++)
+    {
+      std::vector<std::string> args = splitText(optionalArgs[i], " ");
+
+      if(args[3] == "RMS")
+      {
+        RMS(args, obj[i-4],faceData);
+      }
+      else if(args[3] == "VolError")
+      {
+        RMS(args, obj[i-4],faceData);
+      }
+    }
+
+    CloseSwmmOutFile(faceData);
+  }
+  else
+  {
+    printf("input file specified does not exist: %s\n" , swmminputfile.c_str());
+    abort();
+  }
 }

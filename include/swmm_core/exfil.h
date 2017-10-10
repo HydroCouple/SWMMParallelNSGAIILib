@@ -12,24 +12,28 @@
 #ifndef EXFIL_H
 #define EXFIL_H
 
+struct Project;
+
 //----------------------------
 // EXFILTRATION OBJECT
 //----------------------------
 typedef struct
 {
-    TGrnAmpt*  btmExfil;
-    TGrnAmpt*  bankExfil;
-    double     btmArea;
-    double     bankMinDepth;
-    double     bankMaxDepth;
-    double     bankMaxArea;
+	TGrnAmpt*  btmExfil;
+	TGrnAmpt*  bankExfil;
+	double     btmArea;
+	double     bankMinDepth;
+	double     bankMaxDepth;
+	double     bankMaxArea;
 }   TExfil;
+
+
 
 //-----------------------------------------------------------------------------
 //   Exfiltration Methods
 //-----------------------------------------------------------------------------
-int    exfil_readStorageParams(int k, char* tok[], int ntoks, int n);
-void   exfil_initState(int k);
-double exfil_getLoss(TExfil* exfil, double tStep, double depth, double area);
+int    exfil_readStorageParams(struct Project* project, int k, char* tok[], int ntoks, int n);
+void   exfil_initState(struct Project* project, int k);
+double exfil_getLoss(struct Project* project, TExfil* exfil, double tStep, double depth, double area);
 
 #endif

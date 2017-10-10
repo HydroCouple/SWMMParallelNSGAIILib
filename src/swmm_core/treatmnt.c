@@ -32,13 +32,13 @@ enum   ProcessVarType {pvHRT,          // hydraulic residence time
 //-----------------------------------------------------------------------------
 //  Shared variables
 //-----------------------------------------------------------------------------
-static int     ErrCode;                // treatment error code
-static int     J;                      // index of node being analyzed
-static double  Dt;                     // curent time step (sec)
-static double  Q;                      // node inflow (cfs)
-static double  V;                      // node volume (ft3)
-static double* R;                      // array of pollut. removals
-static double* Cin;                    // node inflow concentrations
+//static int     project->ErrCode;                // treatment error code
+//static int     project->J;                      // index of node being analyzed
+//static double  project->Dt;                     // curent time step (sec)
+//static double  project->Q;                      // node inflow (cfs)
+//static double  project->V;                      // node volume (ft3)
+//static double* project->R;                      // array of pollut. removals
+//static double* project->Cin;                    // node inflow concentrations
 //static TTreatment* Treatment; // defined locally in treatmnt_treat()         //(5.1.008)
 
 //-----------------------------------------------------------------------------
@@ -54,30 +54,30 @@ static double* Cin;                    // node inflow concentrations
 //-----------------------------------------------------------------------------
 //  Local functions
 //-----------------------------------------------------------------------------
-static int    createTreatment(int node);
-static double getRemoval(int pollut);
-static int    getVariableIndex(char* s);
-static double getVariableValue(int varCode);
+static int    createTreatment(Project* project, int node);
+static double getRemoval(Project* project, int pollut);
+static int    getVariableIndex(Project* project, char* s);
+static double getVariableValue(Project* project, int varCode);
 
 
 //=============================================================================
 
-int  treatmnt_open(void)
+int  treatmnt_open(Project* project)
 //
 //  Input:   none
 //  Output:  returns TRUE if successful, FALSE if not
 //  Purpose: allocates memory for computing pollutant removals by treatment.
 //
 {
-    R = NULL;
-    Cin = NULL;
-    if ( Nobjects[POLLUT] > 0 )
+    project->R = NULL;
+    project->Cin = NULL;
+    if ( project->Nobjects[POLLUT] > 0 )
     {
-        R = (double *) calloc(Nobjects[POLLUT], sizeof(double));
-        Cin = (double *) calloc(Nobjects[POLLUT], sizeof(double));
-        if ( R == NULL || Cin == NULL)
+        project->R = (double *) calloc(project->Nobjects[POLLUT], sizeof(double));
+        project->Cin = (double *) calloc(project->Nobjects[POLLUT], sizeof(double));
+        if ( project->R == NULL || project->Cin == NULL)
         {
-            report_writeErrorMsg(ERR_MEMORY, "");
+            report_writeErrorMsg(project,ERR_MEMORY, "");
             return FALSE;
         }
     }
@@ -86,20 +86,20 @@ int  treatmnt_open(void)
 
 //=============================================================================
 
-void treatmnt_close(void)
+void treatmnt_close(Project* project)
 //
 //  Input:   none
 //  Output:  returns an error code
 //  Purpose: frees memory used for computing pollutant removals by treatment.
 //
 {
-    FREE(R);
-    FREE(Cin);
+    FREE(project->R);
+    FREE(project->Cin);
 }
 
 //=============================================================================
 
-int  treatmnt_readExpression(char* tok[], int ntoks)
+int  treatmnt_readExpression(Project* project, char* tok[], int ntoks)
 //
 //  Input:   tok[] = array of string tokens
 //           ntoks = number of tokens
@@ -114,9 +114,9 @@ int  treatmnt_readExpression(char* tok[], int ntoks)
 
     // --- retrieve node & pollutant
     if ( ntoks < 3 ) return error_setInpError(ERR_ITEMS, "");
-    j = project_findObject(NODE, tok[0]);
+    j = project_findObject(project,NODE, tok[0]);
     if ( j < 0 ) return error_setInpError(ERR_NAME, tok[0]);
-    p = project_findObject(POLLUT, tok[1]);
+    p = project_findObject(project,POLLUT, tok[1]);
     if ( p < 0 ) return error_setInpError(ERR_NAME, tok[1]);
 
     // --- concatenate remaining tokens into a single string
@@ -138,27 +138,27 @@ int  treatmnt_readExpression(char* tok[], int ntoks)
     else expr++;
 
     // --- create treatment objects at node j if they don't already exist
-    if ( Node[j].treatment == NULL )
+    if ( project->Node[j].treatment == NULL )
     {
-        if ( !createTreatment(j) ) return error_setInpError(ERR_MEMORY, "");
+        if ( !createTreatment(project,j) ) return error_setInpError(ERR_MEMORY, "");
     }
 
     // --- create a parsed expression tree from the string expr
     //     (getVariableIndex is the function that converts a treatment
     //      variable's name into an index number) 
-    equation = mathexpr_create(expr, getVariableIndex);
+    equation = mathexpr_create(project,expr, getVariableIndex);
     if ( equation == NULL )
         return error_setInpError(ERR_TREATMENT_EXPR, "");
 
     // --- save the treatment parameters in the node's treatment object
-    Node[j].treatment[p].treatType = k;
-    Node[j].treatment[p].equation = equation;
+    project->Node[j].treatment[p].treatType = k;
+    project->Node[j].treatment[p].equation = equation;
     return 0;
 }
 
 //=============================================================================
 
-void treatmnt_delete(int j)
+void treatmnt_delete(Project* project, int j)
 //
 //  Input:   j = node index
 //  Output:  none
@@ -166,18 +166,18 @@ void treatmnt_delete(int j)
 //
 {
     int p;
-    if ( Node[j].treatment )
+    if ( project->Node[j].treatment )
     {
-        for (p=0; p<Nobjects[POLLUT]; p++)
-            mathexpr_delete(Node[j].treatment[p].equation);
-        free(Node[j].treatment);
+        for (p=0; p<project->Nobjects[POLLUT]; p++)
+            mathexpr_delete(project->Node[j].treatment[p].equation);
+        free(project->Node[j].treatment);
     }
-    Node[j].treatment = NULL;
+    project->Node[j].treatment = NULL;
 }
 
 //=============================================================================
 
-void  treatmnt_setInflow(double qIn, double wIn[])
+void  treatmnt_setInflow(Project* project, double qIn, double wIn[])
 //
 //  Input:   j = node index
 //           qIn = flow inflow rate (cfs)
@@ -188,14 +188,14 @@ void  treatmnt_setInflow(double qIn, double wIn[])
 {
     int    p;
     if ( qIn > 0.0 )
-        for (p = 0; p < Nobjects[POLLUT]; p++) Cin[p] = wIn[p]/qIn;
+        for (p = 0; p < project->Nobjects[POLLUT]; p++) project->Cin[p] = wIn[p]/qIn;
     else
-        for (p = 0; p < Nobjects[POLLUT]; p++) Cin[p] = 0.0;
+        for (p = 0; p < project->Nobjects[POLLUT]; p++) project->Cin[p] = 0.0;
 }
 
 //=============================================================================
 
-void  treatmnt_treat(int j, double q, double v, double tStep)
+void  treatmnt_treat(Project* project, int j, double q, double v, double tStep)
 //
 //  Input:   j     = node index
 //           q     = inflow to node (cfs)
@@ -211,77 +211,77 @@ void  treatmnt_treat(int j, double q, double v, double tStep)
     TTreatment* treatment;             // pointer to treatment object          //(5.1.008)
 
     // --- set locally shared variables for node j
-    if ( Node[j].treatment == NULL ) return;
-    ErrCode = 0;
-    J  = j;                            // current node
-    Dt = tStep;                        // current time step
-    Q  = q;                            // current inflow rate
-    V  = v;                            // current node volume
+    if ( project->Node[j].treatment == NULL ) return;
+    project->ErrCode = 0;
+    project->J  = j;                            // current node
+    project->Dt = tStep;                        // current time step
+    project->Q  = q;                            // current inflow rate
+    project->V  = v;                            // current node volume
 
     // --- initialze each removal to indicate no value 
-    for ( p = 0; p < Nobjects[POLLUT]; p++) R[p] = -1.0;
+    for ( p = 0; p < project->Nobjects[POLLUT]; p++) project->R[p] = -1.0;
 
     // --- determine removal of each pollutant
-    for ( p = 0; p < Nobjects[POLLUT]; p++)
+    for ( p = 0; p < project->Nobjects[POLLUT]; p++)
     {
         // --- removal is zero if there is no treatment equation
-        treatment = &Node[j].treatment[p];                                     //(5.1.008)
-        if ( treatment->equation == NULL ) R[p] = 0.0;                         //(5.1.008)
+        treatment = &project->Node[j].treatment[p];                                     //(5.1.008)
+        if ( treatment->equation == NULL ) project->R[p] = 0.0;                         //(5.1.008)
 
         // --- no removal for removal-type expression when there is no inflow 
-	    else if ( treatment->treatType == REMOVAL && q <= ZERO ) R[p] = 0.0;   //(5.1.008)
+	    else if ( treatment->treatType == REMOVAL && q <= ZERO ) project->R[p] = 0.0;   //(5.1.008)
 
-        // --- otherwise evaluate the treatment expression to find R[p]
-        else getRemoval(p);
+        // --- otherwise evaluate the treatment expression to find project->R[p]
+        else getRemoval(project,p);
     }
 
     // --- check for error condition
-    if ( ErrCode == ERR_CYCLIC_TREATMENT )
+    if ( project->ErrCode == ERR_CYCLIC_TREATMENT )
     {
-         report_writeErrorMsg(ERR_CYCLIC_TREATMENT, Node[J].ID);
+         report_writeErrorMsg(project,ERR_CYCLIC_TREATMENT, project->Node[project->J].ID);
     }
 
     // --- update nodal concentrations and mass balances
-    else for ( p = 0; p < Nobjects[POLLUT]; p++ )
+    else for ( p = 0; p < project->Nobjects[POLLUT]; p++ )
     {
-        if ( R[p] == 0.0 ) continue;
-        treatment = &Node[j].treatment[p];                                     //(5.1.008)
+        if ( project->R[p] == 0.0 ) continue;
+        treatment = &project->Node[j].treatment[p];                                     //(5.1.008)
 
         // --- removal-type treatment equations get applied to inflow stream
 
         if ( treatment->treatType == REMOVAL )                                 //(5.1.008)
         {
             // --- if no pollutant in inflow then cOut is current nodal concen.
-            if ( Cin[p] == 0.0 ) cOut = Node[j].newQual[p];
+            if ( project->Cin[p] == 0.0 ) cOut = project->Node[j].newQual[p];
 
             // ---  otherwise apply removal to influent concen.
-            else cOut = (1.0 - R[p]) * Cin[p];
+            else cOut = (1.0 - project->R[p]) * project->Cin[p];
 
             // --- cOut can't be greater than mixture concen. at node
             //     (i.e., in case node is a storage unit) 
-            cOut = MIN(cOut, Node[j].newQual[p]);
+            cOut = MIN(cOut, project->Node[j].newQual[p]);
         }
 
         // --- concentration-type equations get applied to nodal concentration
         else
         {
-            cOut = (1.0 - R[p]) * Node[j].newQual[p];
+            cOut = (1.0 - project->R[p]) * project->Node[j].newQual[p];
         }
 
         // --- mass lost must account for any initial mass in storage 
-        massLost = (Cin[p]*q*tStep + Node[j].oldQual[p]*Node[j].oldVolume - 
-                   cOut*(q*tStep + Node[j].oldVolume)) / tStep; 
+        massLost = (project->Cin[p]*q*tStep + project->Node[j].oldQual[p]*project->Node[j].oldVolume - 
+                   cOut*(q*tStep + project->Node[j].oldVolume)) / tStep; 
         massLost = MAX(0.0, massLost); 
 
         // --- add mass loss to mass balance totals and revise nodal concentration
-        massbal_addReactedMass(p, massLost);
-        Node[j].newQual[p] = cOut;
+        massbal_addReactedMass(project,p, massLost);
+        project->Node[j].newQual[p] = cOut;
     }
 }
 
 //=============================================================================
 
-int  createTreatment(int j)
+int  createTreatment(Project* project, int j)
 //
 //  Input:   j = node index
 //  Output:  returns TRUE if successful, FALSE if not
@@ -289,22 +289,22 @@ int  createTreatment(int j)
 //
 {
     int p;
-    Node[j].treatment = (TTreatment *) calloc(Nobjects[POLLUT],
+    project->Node[j].treatment = (TTreatment *) calloc(project->Nobjects[POLLUT],
                                               sizeof(TTreatment));
-    if ( Node[j].treatment == NULL )
+    if ( project->Node[j].treatment == NULL )
     {
         return FALSE;
     }
-    for (p = 0; p < Nobjects[POLLUT]; p++)
+    for (p = 0; p < project->Nobjects[POLLUT]; p++)
     {
-        Node[j].treatment[p].equation = NULL;
+        project->Node[j].treatment[p].equation = NULL;
     }
     return TRUE;
 }
 
 //=============================================================================
 
-int  getVariableIndex(char* s)
+int  getVariableIndex(Project* project, char* s)
 //
 //  Input:   s = name of a process variable or pollutant
 //  Output:  returns index of process variable or pollutant
@@ -319,27 +319,27 @@ int  getVariableIndex(char* s)
     if ( k >= 0 ) return k;
 
     // --- then check for a pollutant concentration
-    k = project_findObject(POLLUT, s);
+    k = project_findObject(project,POLLUT, s);
     if ( k >= 0 ) return (k + m);
 
     // --- finally check for a pollutant removal
     if ( UCHAR(s[0]) == 'R' && s[1] == '_')
     {
-        k = project_findObject(POLLUT, s+2);
-        if ( k >= 0 ) return (Nobjects[POLLUT] + k + m);
+        k = project_findObject(project,POLLUT, s+2);
+        if ( k >= 0 ) return (project->Nobjects[POLLUT] + k + m);
     }
     return -1;
 }
 
 //=============================================================================
 
-double getVariableValue(int varCode)
+double getVariableValue(Project* project, int varCode)
 //
 //  Input:   varCode = code number of process variable or pollutant
 //  Output:  returns current value of variable
 //  Purpose: finds current value of a process variable or pollutant concen.,
 //           making reference to the node being evaluated which is stored in
-//           shared variable J.
+//           shared variable project->J.
 //
 {
     int    p;
@@ -352,103 +352,103 @@ double getVariableValue(int varCode)
         switch ( varCode )
         {
           case pvHRT:                                 // HRT in hours
-            if ( Node[J].type == STORAGE )
+            if ( project->Node[project->J].type == STORAGE )
             {
-                return Storage[Node[J].subIndex].hrt / 3600.0;
+                return project->Storage[project->Node[project->J].subIndex].hrt / 3600.0;
             }
             else return 0.0;
 
           case pvDT:
-            return Dt;                                // time step in seconds
+            return project->Dt;                                // time step in seconds
 
           case pvFLOW:
-            return Q * UCF(FLOW);                     // flow in user's units
+            return project->Q * UCF(project, FLOW);                     // flow in user's units
 
           case pvDEPTH:
-            y = (Node[J].oldDepth + Node[J].newDepth) / 2.0;
-            return y * UCF(LENGTH);                   // depth in ft or m
+            y = (project->Node[project->J].oldDepth + project->Node[project->J].newDepth) / 2.0;
+			return y * UCF(project, LENGTH);                   // depth in ft or m
 
           case pvAREA:
-            a1 = node_getSurfArea(J, Node[J].oldDepth);
-            a2 = node_getSurfArea(J, Node[J].newDepth);
-            return (a1 + a2) / 2.0 * UCF(LENGTH) * UCF(LENGTH);
+			  a1 = node_getSurfArea(project, project->J, project->Node[project->J].oldDepth);
+			  a2 = node_getSurfArea(project, project->J, project->Node[project->J].newDepth);
+			return (a1 + a2) / 2.0 * UCF(project, LENGTH) * UCF(project, LENGTH);
             
           default: return 0.0;
         }
     }
 
     // --- variable is a pollutant concentration
-    else if ( varCode < PVMAX + Nobjects[POLLUT] )
+    else if ( varCode < PVMAX + project->Nobjects[POLLUT] )
     {
         p = varCode - PVMAX;
-        treatment = &Node[J].treatment[p];                                     //(5.1.008)
-        if ( treatment->treatType == REMOVAL ) return Cin[p];                  //(5.1.008)
-        return Node[J].newQual[p];
+        treatment = &project->Node[project->J].treatment[p];                                     //(5.1.008)
+        if ( treatment->treatType == REMOVAL ) return project->Cin[p];                  //(5.1.008)
+        return project->Node[project->J].newQual[p];
     }
 
     // --- variable is a pollutant removal
     else
     {
-        p = varCode - PVMAX - Nobjects[POLLUT];
-        if ( p >= Nobjects[POLLUT] ) return 0.0;
-        return getRemoval(p);
+        p = varCode - PVMAX - project->Nobjects[POLLUT];
+        if ( p >= project->Nobjects[POLLUT] ) return 0.0;
+        return getRemoval(project,p);
     }
 }
 
 //=============================================================================
 
-double  getRemoval(int p)
+double  getRemoval(Project* project, int p)
 //
 //  Input:   p = pollutant index
 //  Output:  returns fractional removal of pollutant
 //  Purpose: computes removal of a specific pollutant
 //
 {
-    double c0 = Node[J].newQual[p];    // initial node concentration
+    double c0 = project->Node[project->J].newQual[p];    // initial node concentration
     double r;                          // removal value
     TTreatment* treatment;                                                     //(5.1.008)
 
     // --- case where removal already being computed for another pollutant
-    if ( R[p] > 1.0 || ErrCode )
+    if ( project->R[p] > 1.0 || project->ErrCode )
     {
-        ErrCode = 1;
+        project->ErrCode = 1;
         return 0.0;
     }
 
     // --- case where removal already computed
-    if ( R[p] >= 0.0 && R[p] <= 1.0 ) return R[p];
+    if ( project->R[p] >= 0.0 && project->R[p] <= 1.0 ) return project->R[p];
 
-    // --- set R[p] to value > 1 to show that value is being sought
+    // --- set project->R[p] to value > 1 to show that value is being sought
     //     (prevents infinite recursive calls in case two removals
     //     depend on each other)
-    R[p] = 10.0;
+    project->R[p] = 10.0;
 
     // --- case where current concen. is zero
     if ( c0 == 0.0 )
     {
-        R[p] = 0.0;
+        project->R[p] = 0.0;
         return 0.0;
     }
 
     // --- apply treatment eqn.
-    treatment = &Node[J].treatment[p];                                         //(5.1.008)
-    r = mathexpr_eval(treatment->equation, getVariableValue);                  //(5.1.008)
+    treatment = &project->Node[project->J].treatment[p];                                         //(5.1.008)
+    r = mathexpr_eval(project, treatment->equation, getVariableValue);                  //(5.1.008)
     r = MAX(0.0, r);
 
     // --- case where treatment eqn. is for removal
     if ( treatment->treatType == REMOVAL )                                     //(5.1.008)
     {
         r = MIN(1.0, r);
-        R[p] = r;
+        project->R[p] = r;
     }
 
     // --- case where treatment eqn. is for effluent concen.
     else
     {
         r = MIN(c0, r);
-        R[p] = 1.0 - r/c0;
+        project->R[p] = 1.0 - r/c0;
     }
-    return R[p];
+    return project->R[p];
 }
 
 //=============================================================================
