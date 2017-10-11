@@ -40,7 +40,7 @@
 //TGrnAmpt*  project->GAInfil   = NULL;
 //TCurveNum* project->CNInfil   = NULL;
 
-static double Fumax;   // saturated water volume in upper soil zone (ft)
+//static double  project->Fumax;   // saturated water volume in upper soil zone (ft)
 
 //-----------------------------------------------------------------------------
 //  External Functions (declared in infil.h)
@@ -148,7 +148,7 @@ int infil_readParams(Project* project, int m, char* tok[], int ntoks)
 
     // --- check that subcatchment exists
 	j = project_findObject(project, SUBCATCH, tok[0]);
-    if ( j < 0 ) return error_setInpError(ERR_NAME, tok[0]);
+    if ( j < 0 ) return error_setInpError(project,ERR_NAME, tok[0]);
 
     // --- number of input tokens depends on infiltration model m
     if      ( m == HORTON )       n = 5;
@@ -157,21 +157,21 @@ int infil_readParams(Project* project, int m, char* tok[], int ntoks)
     else if ( m == MOD_GREEN_AMPT )   n = 4;                                   //(5.1.010)
     else if ( m == CURVE_NUMBER ) n = 4;
     else return 0;
-    if ( ntoks < n ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < n ) return error_setInpError(project,ERR_ITEMS, "");
 
     // --- parse numerical values from tokens
     for (i = 0; i < 5; i++) x[i] = 0.0;
     for (i = 1; i < n; i++)
     {
         if ( ! getDouble(tok[i], &x[i-1]) )
-            return error_setInpError(ERR_NUMBER, tok[i]);
+            return error_setInpError(project,ERR_NUMBER, tok[i]);
     }
 
     // --- special case for Horton infil. - last parameter is optional
     if ( (m == HORTON || m == MOD_HORTON) && ntoks > n )
     {
         if ( ! getDouble(tok[n], &x[n-1]) )
-            return error_setInpError(ERR_NUMBER, tok[n]);
+            return error_setInpError(project,ERR_NUMBER, tok[n]);
     }
 
     // --- assign parameter values to infil. object
@@ -189,7 +189,7 @@ int infil_readParams(Project* project, int m, char* tok[], int ntoks)
                          break;
       default:           status = TRUE;
     }
-    if ( !status ) return error_setInpError(ERR_NUMBER, "");
+    if ( !status ) return error_setInpError(project,ERR_NUMBER, "");
     return 0;
 }
 
@@ -603,7 +603,7 @@ double grnampt_getInfil(Project* project, TGrnAmpt *infil, double tstep, double 
 //
 {
     // --- find saturated upper soil zone water volume
-    Fumax = infil->IMDmax * infil->Lu;
+     project->Fumax = infil->IMDmax * infil->Lu;
 
     // --- reduce time until next event
     infil->T -= tstep;
@@ -644,7 +644,7 @@ double grnampt_getUnsatInfil(Project* project, TGrnAmpt *infil, double tstep, do
     {
         if ( infil->Fu <= 0.0 ) return 0.0;
         kr = infil->Lu / 90000.0 * project->Evap.recoveryFactor;
-        dF = kr * Fumax * tstep;
+        dF = kr *  project->Fumax * tstep;
         infil->F -= dF;
         infil->Fu -= dF;
         if ( infil->Fu <= 0.0 )
@@ -658,7 +658,7 @@ double grnampt_getUnsatInfil(Project* project, TGrnAmpt *infil, double tstep, do
         // --- if new wet event begins then reset IMD & F
         if ( infil->T <= 0.0 )
         {
-            infil->IMD = (Fumax - infil->Fu) / infil->Lu;
+            infil->IMD = ( project->Fumax - infil->Fu) / infil->Lu;
             infil->F = 0.0;
         }
         return 0.0;
@@ -670,10 +670,10 @@ double grnampt_getUnsatInfil(Project* project, TGrnAmpt *infil, double tstep, do
         dF = ia * tstep;
         infil->F += dF;
         infil->Fu += dF;
-        infil->Fu = MIN(infil->Fu, Fumax);
+        infil->Fu = MIN(infil->Fu,  project->Fumax);
         if ( modelType == GREEN_AMPT &&  infil->T <= 0.0 )                    //(5.1.010)
         {
-            infil->IMD = (Fumax - infil->Fu) / infil->Lu;
+            infil->IMD = ( project->Fumax - infil->Fu) / infil->Lu;
             infil->F = 0.0;
         }
         return ia;
@@ -698,7 +698,7 @@ double grnampt_getUnsatInfil(Project* project, TGrnAmpt *infil, double tstep, do
         dF = ia * tstep;
         infil->F += dF;
         infil->Fu += dF;
-        infil->Fu = MIN(infil->Fu, Fumax);
+        infil->Fu = MIN(infil->Fu,  project->Fumax);
         return ia;
     }
 
@@ -716,7 +716,7 @@ double grnampt_getUnsatInfil(Project* project, TGrnAmpt *infil, double tstep, do
     dF = F2 - infil->F;
     infil->F = F2;
     infil->Fu += dF;
-    infil->Fu = MIN(infil->Fu, Fumax);
+    infil->Fu = MIN(infil->Fu,  project->Fumax);
     infil->Sat = TRUE;
     return dF / tstep;
 }
@@ -764,7 +764,7 @@ double grnampt_getSatInfil(Project* project, TGrnAmpt *infil, double tstep, doub
     // --- update total infiltration and upper zone moisture deficit
     infil->F += dF;
     infil->Fu += dF;
-    infil->Fu = MIN(infil->Fu, Fumax);
+    infil->Fu = MIN(infil->Fu,  project->Fumax);
     return dF / tstep;
 }
 

@@ -158,7 +158,7 @@ static char* SettingTypeWords[] = {"CURVE", "TIMESERIES", "PID", NULL};
 //-----------------------------------------------------------------------------
 int    addPremise(Project* project, int r, int type, char* Tok[], int nToks);
 int    getPremiseVariable(Project* project, char* tok[], int* k, struct TVariable* v);
-int    getPremiseValue(char* token, int attrib, double* value);
+int    getPremiseValue(Project *project, char* token, int attrib, double* value);
 int    addAction(Project* project, int r, char* Tok[], int nToks);
 
 int    evaluatePremise(Project* project, struct TPremise* p, double tStep);
@@ -369,7 +369,7 @@ int  addPremise(Project* project, int r, int type, char* tok[], int nToks)
     // --- get relational operator
     n++;
     relation = findExactMatch(tok[n], RelOpWords);
-    if ( relation < 0 ) return error_setInpError(ERR_KEYWORD, tok[n]);
+    if ( relation < 0 ) return error_setInpError(project, ERR_KEYWORD, tok[n]);
     n++;
 
     // --- initialize RHS variable
@@ -378,7 +378,7 @@ int  addPremise(Project* project, int r, int type, char* tok[], int nToks)
     v2.node = -1;
 
     // --- check that more tokens remain
-    if ( n >= nToks ) return error_setInpError(ERR_ITEMS, "");
+    if ( n >= nToks ) return error_setInpError(project,ERR_ITEMS, "");
         
     // --- see if a RHS variable is supplied
     if ( findmatch(tok[n], ObjectWords) >= 0 && n + 3 >= nToks )
@@ -392,7 +392,7 @@ int  addPremise(Project* project, int r, int type, char* tok[], int nToks)
     // --- otherwise get value to which LHS variable is compared to
     else
     {
-        err = getPremiseValue(tok[n], v1.attribute, &value);
+        err = getPremiseValue(project,tok[n], v1.attribute, &value);
         n++;
     }
     if ( err > 0 ) return err;
@@ -440,7 +440,7 @@ int getPremiseVariable(Project* project, char* tok[], int* k, struct TVariable* 
 
     // --- get object type
     obj = findmatch(tok[n], ObjectWords);
-    if ( obj < 0 ) return error_setInpError(ERR_KEYWORD, tok[n]);
+    if ( obj < 0 ) return error_setInpError(project,ERR_KEYWORD, tok[n]);
 
     // --- get object index from its name
     n++;
@@ -448,7 +448,7 @@ int getPremiseVariable(Project* project, char* tok[], int* k, struct TVariable* 
     {
       case r_NODE:
 		  node = project_findObject(project, NODE, tok[n]);
-        if ( node < 0 ) return error_setInpError(ERR_NAME, tok[n]);
+	if ( node < 0 ) return error_setInpError(project,ERR_NAME, tok[n]);
         break;
 
       case r_LINK:
@@ -458,7 +458,7 @@ int getPremiseVariable(Project* project, char* tok[], int* k, struct TVariable* 
       case r_WEIR:
       case r_OUTLET:
 		  link = project_findObject(project, LINK, tok[n]);
-        if ( link < 0 ) return error_setInpError(ERR_NAME, tok[n]);
+	if ( link < 0 ) return error_setInpError(project,ERR_NAME, tok[n]);
         break;
       default: n--;
     }
@@ -466,7 +466,7 @@ int getPremiseVariable(Project* project, char* tok[], int* k, struct TVariable* 
 
     // --- get attribute index from its name
     attrib = findmatch(tok[n], AttribWords);
-    if ( attrib < 0 ) return error_setInpError(ERR_KEYWORD, tok[n]);
+    if ( attrib < 0 ) return error_setInpError(project,ERR_KEYWORD, tok[n]);
 
     // --- check that attribute belongs to object type
     if ( obj == r_NODE ) switch (attrib)
@@ -475,7 +475,7 @@ int getPremiseVariable(Project* project, char* tok[], int* k, struct TVariable* 
       case r_HEAD:
       case r_VOLUME:                                                           //(5.1.008)
       case r_INFLOW: break;
-      default: return error_setInpError(ERR_KEYWORD, tok[n]);
+      default: return error_setInpError(project,ERR_KEYWORD, tok[n]);
     }
 
 ////  Added to release 5.1.010.  ////                                          //(5.1.010)
@@ -494,19 +494,19 @@ int getPremiseVariable(Project* project, char* tok[], int* k, struct TVariable* 
       case r_STATUS:
       case r_DEPTH:
       case r_FLOW: break;
-      default: return error_setInpError(ERR_KEYWORD, tok[n]);
+      default: return error_setInpError(project,ERR_KEYWORD, tok[n]);
     }
     else if ( obj == r_PUMP ) switch (attrib)
     {
       case r_FLOW:
       case r_STATUS: break;
-      default: return error_setInpError(ERR_KEYWORD, tok[n]);
+      default: return error_setInpError(project,ERR_KEYWORD, tok[n]);
     }
     else if ( obj == r_ORIFICE || obj == r_WEIR ||
               obj == r_OUTLET ) switch (attrib)
     {
       case r_SETTING: break;
-      default: return error_setInpError(ERR_KEYWORD, tok[n]);
+      default: return error_setInpError(project,ERR_KEYWORD, tok[n]);
     }
     else switch (attrib)
     {
@@ -515,7 +515,7 @@ int getPremiseVariable(Project* project, char* tok[], int* k, struct TVariable* 
       case r_CLOCKTIME:
       case r_DAY:
       case r_MONTH: break;
-      default: return error_setInpError(ERR_KEYWORD, tok[n]);
+      default: return error_setInpError(project,ERR_KEYWORD, tok[n]);
     }
 
     // --- populate variable structure
@@ -528,7 +528,7 @@ int getPremiseVariable(Project* project, char* tok[], int* k, struct TVariable* 
 
 //=============================================================================
 
-int getPremiseValue(char* token, int attrib, double* value)
+int getPremiseValue(Project *project, char* token, int attrib, double* value)
 //
 //  Input:   token = a string token
 //           attrib = index of a node/link attribute
@@ -543,7 +543,7 @@ int getPremiseValue(char* token, int attrib, double* value)
       case r_STATUS:
         *value = findmatch(token, StatusWords);
 		if ( *value < 0.0 ) *value = findmatch(token, ConduitWords);
-        if ( *value < 0.0 ) return error_setInpError(ERR_KEYWORD, token);
+	if ( *value < 0.0 ) return error_setInpError(project,ERR_KEYWORD, token);
         break;
 
       case r_TIME:
@@ -551,30 +551,30 @@ int getPremiseValue(char* token, int attrib, double* value)
       case r_TIMEOPEN:                                                         //(5.1.010)
       case r_TIMECLOSED:                                                       //(5.1.010)
         if ( !datetime_strToTime(token, value) )
-            return error_setInpError(ERR_DATETIME, token);
+            return error_setInpError(project,ERR_DATETIME, token);
         break;
 
       case r_DATE:
         if ( !datetime_strToDate(token, value) )
-            return error_setInpError(ERR_DATETIME, token);
+            return error_setInpError(project,ERR_DATETIME, token);
         break;
 
       case r_DAY:
         if ( !getDouble(token, value) ) 
-            return error_setInpError(ERR_NUMBER, token);
+            return error_setInpError(project,ERR_NUMBER, token);
         if ( *value < 1.0 || *value > 7.0 )
-             return error_setInpError(ERR_DATETIME, token);
+             return error_setInpError(project,ERR_DATETIME, token);
         break;
 
       case r_MONTH:
         if ( !getDouble(token, value) )
-            return error_setInpError(ERR_NUMBER, token);
+            return error_setInpError(project,ERR_NUMBER, token);
         if ( *value < 1.0 || *value > 12.0 )
-             return error_setInpError(ERR_DATETIME, token);
+             return error_setInpError(project,ERR_DATETIME, token);
         break;
        
       default: if ( !getDouble(token, value) )
-          return error_setInpError(ERR_NUMBER, token);
+          return error_setInpError(project,ERR_NUMBER, token);
     }
     return 0;
 }
@@ -599,44 +599,44 @@ int  addAction(Project* project, int r, char* tok[], int nToks)
     struct TAction* a;
 
     // --- check for proper number of tokens
-    if ( nToks < 6 ) return error_setInpError(ERR_ITEMS, "");
+    if ( nToks < 6 ) return error_setInpError(project,ERR_ITEMS, "");
 
     // --- check for valid object type
     obj = findmatch(tok[1], ObjectWords);
     if ( obj != r_LINK && obj != r_CONDUIT && obj != r_PUMP && 
          obj != r_ORIFICE && obj != r_WEIR && obj != r_OUTLET )
-        return error_setInpError(ERR_KEYWORD, tok[1]);
+        return error_setInpError(project,ERR_KEYWORD, tok[1]);
 
     // --- check that object name exists and is of correct type
     link = project_findObject(project, LINK, tok[2]);
-    if ( link < 0 ) return error_setInpError(ERR_NAME, tok[2]);
+    if ( link < 0 ) return error_setInpError(project,ERR_NAME, tok[2]);
     switch (obj)
     {
       case r_CONDUIT:
 	if ( project->Link[link].type != CONDUIT )
-	    return error_setInpError(ERR_NAME, tok[2]);
+	    return error_setInpError(project,ERR_NAME, tok[2]);
 	break;
       case r_PUMP:
         if ( project->Link[link].type != PUMP )
-            return error_setInpError(ERR_NAME, tok[2]);
+            return error_setInpError(project,ERR_NAME, tok[2]);
         break;
       case r_ORIFICE:
         if ( project->Link[link].type != ORIFICE )
-            return error_setInpError(ERR_NAME, tok[2]);
+            return error_setInpError(project,ERR_NAME, tok[2]);
         break;
       case r_WEIR:
         if ( project->Link[link].type != WEIR )
-            return error_setInpError(ERR_NAME, tok[2]);
+            return error_setInpError(project,ERR_NAME, tok[2]);
         break;
       case r_OUTLET:
         if ( project->Link[link].type != OUTLET )
-            return error_setInpError(ERR_NAME, tok[2]);
+            return error_setInpError(project,ERR_NAME, tok[2]);
         break;
     }
 
     // --- check for valid attribute name
     attrib = findmatch(tok[3], AttribWords);
-    if ( attrib < 0 ) return error_setInpError(ERR_KEYWORD, tok[3]);
+    if ( attrib < 0 ) return error_setInpError(project,ERR_KEYWORD, tok[3]);
 
     // --- get control action setting
     if ( obj == r_CONDUIT )
@@ -645,9 +645,9 @@ int  addAction(Project* project, int r, char* tok[], int nToks)
 	{
             values[0] = findmatch(tok[5], ConduitWords);
             if ( values[0] < 0.0 )
-                return error_setInpError(ERR_KEYWORD, tok[5]);
+                return error_setInpError(project,ERR_KEYWORD, tok[5]);
         }
-        else return error_setInpError(ERR_KEYWORD, tok[3]);
+        else return error_setInpError(project,ERR_KEYWORD, tok[3]);
     }
 
     else if ( obj == r_PUMP )
@@ -656,7 +656,7 @@ int  addAction(Project* project, int r, char* tok[], int nToks)
         {
             values[0] = findmatch(tok[5], StatusWords);
             if ( values[0] < 0.0 )
-                return error_setInpError(ERR_KEYWORD, tok[5]);
+                return error_setInpError(project,ERR_KEYWORD, tok[5]);
         }
         else if ( attrib == r_SETTING )
         {
@@ -664,7 +664,7 @@ int  addAction(Project* project, int r, char* tok[], int nToks)
                                    &attrib, values);
             if ( err > 0 ) return err;
         }
-        else return error_setInpError(ERR_KEYWORD, tok[3]);
+        else return error_setInpError(project,ERR_KEYWORD, tok[3]);
     }
 
     else if ( obj == r_ORIFICE || obj == r_WEIR || obj == r_OUTLET )
@@ -676,11 +676,11 @@ int  addAction(Project* project, int r, char* tok[], int nToks)
            if ( err > 0 ) return err;
            if (  attrib == r_SETTING
            && (values[0] < 0.0 || values[0] > 1.0) ) 
-               return error_setInpError(ERR_NUMBER, tok[5]);
+               return error_setInpError(project,ERR_NUMBER, tok[5]);
         }
-        else return error_setInpError(ERR_KEYWORD, tok[3]);
+        else return error_setInpError(project,ERR_KEYWORD, tok[3]);
     }
-    else return error_setInpError(ERR_KEYWORD, tok[1]);
+    else return error_setInpError(project,ERR_KEYWORD, tok[1]);
 
     // --- check if another clause is on same line
     n = 6;
@@ -736,34 +736,34 @@ int  setActionSetting(Project* project, char* tok[], int nToks, int* curve, int*
     int k, m;
 
     // --- see if control action is determined by a project->Curve or Time Series
-    if (nToks < 6) return error_setInpError(ERR_ITEMS, "");
+    if (nToks < 6) return error_setInpError(project,ERR_ITEMS, "");
     k = findmatch(tok[5], SettingTypeWords);
-    if ( k >= 0 && nToks < 7 ) return error_setInpError(ERR_ITEMS, "");
+    if ( k >= 0 && nToks < 7 ) return error_setInpError(project,ERR_ITEMS, "");
     switch (k)
     {
 
     // --- control determined by a curve - find curve index
     case r_CURVE:
 		m = project_findObject(project, CURVE, tok[6]);
-        if ( m < 0 ) return error_setInpError(ERR_NAME, tok[6]);
+	if ( m < 0 ) return error_setInpError(project,ERR_NAME, tok[6]);
         *curve = m;
         break;
 
     // --- control determined by a time series - find time series index
     case r_TIMESERIES:
 		m = project_findObject(project, TSERIES, tok[6]);
-        if ( m < 0 ) return error_setInpError(ERR_NAME, tok[6]);
+	if ( m < 0 ) return error_setInpError(project,ERR_NAME, tok[6]);
         *tseries = m;
         project->Tseries[m].refersTo = CONTROL;
         break;
 
     // --- control determined by PID controller 
     case r_PID:
-        if (nToks < 9) return error_setInpError(ERR_ITEMS, "");
+        if (nToks < 9) return error_setInpError(project,ERR_ITEMS, "");
         for (m=6; m<=8; m++)
         {
             if ( !getDouble(tok[m], &values[m-6]) )
-                return error_setInpError(ERR_NUMBER, tok[m]);
+                return error_setInpError(project,ERR_NUMBER, tok[m]);
         }
         *attrib = r_PID;
         break;
@@ -771,7 +771,7 @@ int  setActionSetting(Project* project, char* tok[], int nToks, int* curve, int*
     // --- direct numerical control is used
     default:
         if ( !getDouble(tok[5], &values[0]) )
-            return error_setInpError(ERR_NUMBER, tok[5]);
+            return error_setInpError(project,ERR_NUMBER, tok[5]);
     }
     return 0;
 }

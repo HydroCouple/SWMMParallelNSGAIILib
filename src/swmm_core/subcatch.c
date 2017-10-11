@@ -62,7 +62,7 @@ const double ODETOL    = 0.0001;            // acceptable error for ODE solver
 //-----------------------------------------------------------------------------
 // Locally shared variables   
 //-----------------------------------------------------------------------------
-static  TSubarea* theSubarea;     // subarea to which getDdDt() is applied
+//static  TSubarea*  project->theSubarea;     // subarea to which getDdDt() is applied
 static  char *RunoffRoutingWords[] = { w_OUTLET,  w_IMPERV, w_PERV, NULL};
 
 //-----------------------------------------------------------------------------
@@ -121,15 +121,15 @@ int  subcatch_readParams(Project* project, int j, char* tok[], int ntoks)
     double x[9];
 
     // --- check for enough tokens
-    if ( ntoks < 8 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 8 ) return error_setInpError(project,ERR_ITEMS, "");
 
     // --- check that named subcatch exists
     id = project_findID(project,SUBCATCH, tok[0]);
-    if ( id == NULL ) return error_setInpError(ERR_NAME, tok[0]);
+    if ( id == NULL ) return error_setInpError(project,ERR_NAME, tok[0]);
 
     // --- check that rain gage exists
     k = project_findObject(project,GAGE, tok[1]);
-    if ( k < 0 ) return error_setInpError(ERR_NAME, tok[1]);
+    if ( k < 0 ) return error_setInpError(project,ERR_NAME, tok[1]);
     x[0] = k;
 
     // --- check that outlet node or subcatch exists
@@ -138,13 +138,13 @@ int  subcatch_readParams(Project* project, int j, char* tok[], int ntoks)
     m = project_findObject(project,SUBCATCH, tok[2]);
     x[2] = m;
     if ( x[1] < 0.0 && x[2] < 0.0 )
-        return error_setInpError(ERR_NAME, tok[2]);
+        return error_setInpError(project,ERR_NAME, tok[2]);
 
     // --- read area, %imperv, width, slope, & curb length
     for ( i = 3; i < 8; i++)
     {
         if ( ! getDouble(tok[i], &x[i]) || x[i] < 0.0 )
-            return error_setInpError(ERR_NUMBER, tok[i]);
+            return error_setInpError(project,ERR_NUMBER, tok[i]);
     }
 
     // --- if snowmelt object named, check that it exists
@@ -152,7 +152,7 @@ int  subcatch_readParams(Project* project, int j, char* tok[], int ntoks)
     if ( ntoks > 8 )
     {
         k = project_findObject(project,SNOWMELT, tok[8]);
-        if ( k < 0 ) return error_setInpError(ERR_NAME, tok[8]);
+        if ( k < 0 ) return error_setInpError(project,ERR_NAME, tok[8]);
         x[8] = k;
     }
 
@@ -171,7 +171,7 @@ int  subcatch_readParams(Project* project, int j, char* tok[], int ntoks)
     if ( x[8] >= 0 )
     {
         if ( !snow_createSnowpack(project,j, (int)x[8]) )
-            return error_setInpError(ERR_MEMORY, "");
+            return error_setInpError(project,ERR_MEMORY, "");
     }
     return 0;
 }
@@ -194,22 +194,22 @@ int subcatch_readSubareaParams(Project* project, char* tok[], int ntoks)
     double x[7];
 
     // --- check for enough tokens
-    if ( ntoks < 7 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 7 ) return error_setInpError(project,ERR_ITEMS, "");
 
     // --- check that named subcatch exists
     j = project_findObject(project,SUBCATCH, tok[0]);
-    if ( j < 0 ) return error_setInpError(ERR_NAME, tok[0]);
+    if ( j < 0 ) return error_setInpError(project,ERR_NAME, tok[0]);
 
     // --- read in Mannings n, depression storage, & PctZero values
     for (i = 0; i < 5; i++)
     {
         if ( ! getDouble(tok[i+1], &x[i])  || x[i] < 0.0 )
-            return error_setInpError(ERR_NAME, tok[i+1]);
+            return error_setInpError(project,ERR_NAME, tok[i+1]);
     }
 
     // --- check for valid runoff routing keyword
     m = findmatch(tok[6], RunoffRoutingWords);
-    if ( m < 0 ) return error_setInpError(ERR_KEYWORD, tok[6]);
+    if ( m < 0 ) return error_setInpError(project,ERR_KEYWORD, tok[6]);
 
     // --- get percent routed parameter if present (default is 100)
     x[5] = m;
@@ -217,7 +217,7 @@ int subcatch_readSubareaParams(Project* project, char* tok[], int ntoks)
     if ( ntoks >= 8 )
     {
         if ( ! getDouble(tok[7], &x[6]) || x[6] < 0.0 || x[6] > 100.0 )
-            return error_setInpError(ERR_NUMBER, tok[7]);
+            return error_setInpError(project,ERR_NUMBER, tok[7]);
         x[6] /= 100.0;
     }
 
@@ -282,21 +282,21 @@ int subcatch_readLanduseParams(Project* project, char* tok[], int ntoks)
     double  f;
 
     // --- check for enough tokens
-    if ( ntoks < 3 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 3 ) return error_setInpError(project,ERR_ITEMS, "");
 
     // --- check that named subcatch exists
     j = project_findObject(project,SUBCATCH, tok[0]);
-    if ( j < 0 ) return error_setInpError(ERR_NAME, tok[0]);
+    if ( j < 0 ) return error_setInpError(project,ERR_NAME, tok[0]);
 
     // --- process each pair of landuse - percent items
     for ( k = 2; k <= ntoks; k = k+2)
     {
         // --- check that named land use exists and is followed by a percent
         m = project_findObject(project,LANDUSE, tok[k-1]);
-        if ( m < 0 ) return error_setInpError(ERR_NAME, tok[k-1]);
-        if ( k+1 > ntoks ) return error_setInpError(ERR_ITEMS, "");
+        if ( m < 0 ) return error_setInpError(project,ERR_NAME, tok[k-1]);
+        if ( k+1 > ntoks ) return error_setInpError(project,ERR_ITEMS, "");
         if ( ! getDouble(tok[k], &f) )
-            return error_setInpError(ERR_NUMBER, tok[k]);
+            return error_setInpError(project,ERR_NUMBER, tok[k]);
 
         // --- store land use fraction in subcatch's landFactor property
         project->Subcatch[j].landFactor[m].fraction = f/100.0;
@@ -322,21 +322,21 @@ int subcatch_readInitBuildup(Project* project, char* tok[], int ntoks)
     double  x;
 
     // --- check for enough tokens
-    if ( ntoks < 3 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 3 ) return error_setInpError(project,ERR_ITEMS, "");
 
     // --- check that named subcatch exists
     j = project_findObject(project,SUBCATCH, tok[0]);
-    if ( j < 0 ) return error_setInpError(ERR_NAME, tok[0]);
+    if ( j < 0 ) return error_setInpError(project,ERR_NAME, tok[0]);
 
     // --- process each pair of pollutant - init. load items
     for ( k = 2; k <= ntoks; k = k+2)
     {
         // --- check for valid pollutant name and loading value
         m = project_findObject(project,POLLUT, tok[k-1]);
-        if ( m < 0 ) return error_setInpError(ERR_NAME, tok[k-1]);
-        if ( k+1 > ntoks ) return error_setInpError(ERR_ITEMS, "");
+        if ( m < 0 ) return error_setInpError(project,ERR_NAME, tok[k-1]);
+        if ( k+1 > ntoks ) return error_setInpError(project,ERR_ITEMS, "");
         if ( ! getDouble(tok[k], &x) )
-            return error_setInpError(ERR_NUMBER, tok[k]);
+            return error_setInpError(project,ERR_NUMBER, tok[k]);
 
         // --- store loading in subcatch's initBuildup property
         project->Subcatch[j].initBuildup[m] = x;
@@ -1069,7 +1069,7 @@ void updatePondedDepth(Project* project, TSubarea* subarea, double* dt)
         // --- now integrate depth over remaining time step tx
         if ( subarea->alpha > 0.0 && tx > 0.0 )
         {
-            theSubarea = subarea;
+             project->theSubarea = subarea;
             odesolve_integrate(project,&(subarea->depth), 1, 0, tx, ODETOL, tx,
                                getDdDt);
         }
@@ -1099,15 +1099,15 @@ void  getDdDt(Project* project, double t, double* d, double* dddt)
 //           for the subarea whose runoff is being computed.
 //
 {
-    double ix = theSubarea->inflow;                                            //(5.1.008)
-    double rx = *d - theSubarea->dStore;
+    double ix =  project->theSubarea->inflow;                                            //(5.1.008)
+    double rx = *d -  project->theSubarea->dStore;
     if ( rx < 0.0 )
     {
         rx = 0.0;
     }
     else
     {
-        rx = theSubarea->alpha * pow(rx, MEXP);
+        rx =  project->theSubarea->alpha * pow(rx, MEXP);
     }
     *dddt = ix - rx;
 }

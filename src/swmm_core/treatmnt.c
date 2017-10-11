@@ -113,11 +113,11 @@ int  treatmnt_readExpression(Project* project, char* tok[], int ntoks)
     MathExpr* equation;                // ptr. to a math. expression
 
     // --- retrieve node & pollutant
-    if ( ntoks < 3 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 3 ) return error_setInpError(project,ERR_ITEMS, "");
     j = project_findObject(project,NODE, tok[0]);
-    if ( j < 0 ) return error_setInpError(ERR_NAME, tok[0]);
+    if ( j < 0 ) return error_setInpError(project,ERR_NAME, tok[0]);
     p = project_findObject(project,POLLUT, tok[1]);
-    if ( p < 0 ) return error_setInpError(ERR_NAME, tok[1]);
+    if ( p < 0 ) return error_setInpError(project,ERR_NAME, tok[1]);
 
     // --- concatenate remaining tokens into a single string
     strcpy(s, tok[2]);
@@ -130,17 +130,17 @@ int  treatmnt_readExpression(Project* project, char* tok[], int ntoks)
     // --- check treatment type
     if      ( UCHAR(s[0]) == 'R' ) k = 0;
     else if ( UCHAR(s[0]) == 'C' ) k = 1;
-    else return error_setInpError(ERR_KEYWORD, tok[2]);
+    else return error_setInpError(project,ERR_KEYWORD, tok[2]);
 
     // --- start treatment expression after equals sign
     expr = strchr(s, '=');
-    if ( expr == NULL ) return error_setInpError(ERR_KEYWORD, "");
+    if ( expr == NULL ) return error_setInpError(project,ERR_KEYWORD, "");
     else expr++;
 
     // --- create treatment objects at node j if they don't already exist
     if ( project->Node[j].treatment == NULL )
     {
-        if ( !createTreatment(project,j) ) return error_setInpError(ERR_MEMORY, "");
+        if ( !createTreatment(project,j) ) return error_setInpError(project,ERR_MEMORY, "");
     }
 
     // --- create a parsed expression tree from the string expr
@@ -148,7 +148,7 @@ int  treatmnt_readExpression(Project* project, char* tok[], int ntoks)
     //      variable's name into an index number) 
     equation = mathexpr_create(project,expr, getVariableIndex);
     if ( equation == NULL )
-        return error_setInpError(ERR_TREATMENT_EXPR, "");
+        return error_setInpError(project,ERR_TREATMENT_EXPR, "");
 
     // --- save the treatment parameters in the node's treatment object
     project->Node[j].treatment[p].treatType = k;

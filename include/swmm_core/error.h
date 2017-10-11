@@ -165,8 +165,10 @@ enum  ErrorType {
 
       MAXERRMSG};
       
+typedef struct Project Project;
+
 char* error_getMsg(int i);
 int   error_getCode(int i);
-int   error_setInpError(int errcode, char* s);
+int   error_setInpError(Project *project, int errcode, char* s);
 
 #endif

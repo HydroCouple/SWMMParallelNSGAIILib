@@ -3,10 +3,18 @@
 # include <string>
 # include <sys/stat.h>
 # include <fstream>
+# include <limits>
+# include <cmath>
+# include <cstring>
 # include <unordered_map>
 # include "swmmparallelnsgaii.h"
 # include "swmm5_iface.h"
 # include "datetime.h"
+
+
+#ifdef USE_OPENMP
+#include <omp.h>
+#endif
 
 std::vector<std::string> splitText(const std::string &text, const std::string& delim)
 {
@@ -77,7 +85,7 @@ std::vector<std::pair<double, double>> readTimeSeriesFile(const std::string & ti
 
   if(found != loadedTimeSeriesFiles.end())
   {
-    return loadedTimeSeriesFiles[timeSeriesFile];
+    return found->second;
   }
   else
   {
@@ -167,7 +175,7 @@ double CalcRMS(const std::vector<std::pair<double, double>> & obs,
     }
   }
 
-  value = count > 0.0 ? sqrt(value/count) : std::numeric_limits<double>::max();
+  value = count > 0.0 ? std::sqrt(value/count) : std::numeric_limits<double>::max();
 
   return value;
 }
@@ -212,7 +220,7 @@ double CalcVolumeError(const std::vector<std::pair<double, double>> & obs,
     }
   }
 
-  return simVol - obsVol;
+  return fabs(simVol - obsVol);
 
 }
 
@@ -229,9 +237,31 @@ void SWMMParallelNSGAII(int gen, int indIndex, int nreal, double *xreal, int nbi
 {
 
   std::string swmminputfile = optionalArgs[0];
+  trim(swmminputfile);
 
   if(fileExists(swmminputfile))
   {
+    std::string line = "";
+
+    if(mSWMMProjectFileLines.size() == 0)
+    {
+      std::string lines = "";
+      std::fstream readFileStream;
+      readFileStream.open(swmminputfile,std::fstream::in);
+
+      if(readFileStream.is_open())
+      {
+        while (std::getline(readFileStream,line))
+        {
+          lines += "\n" + line;
+        }
+      }
+
+      mSWMMProjectFileLines = lines;
+      readFileStream.close();
+    }
+
+    std::string allLines = mSWMMProjectFileLines;
 
     std::vector<std::string> variables = splitText(optionalArgs[1], " ");
     std::vector<std::string> varmultiplierS = splitText(optionalArgs[2], " ");
@@ -244,38 +274,55 @@ void SWMMParallelNSGAII(int gen, int indIndex, int nreal, double *xreal, int nbi
     std::vector<int> varmultiplier;
     bool found = false;
 
-    for(int i = 0 ; i < varmultiplierS.size() ; i++)
+    for(size_t i = 0 ; i < varmultiplierS.size() ; i++)
     {
       int tempm = stoi(varmultiplierS[i]);
       varmultiplier.push_back(tempm);
 
       if(tempm > 0)
+      {
         found = true;
+      }
     }
-
-    std::string line;
-
 
     std::unordered_map<std::string,double> multiplierTable;
 
     if(found == true)
     {
-      std::fstream multFileStream;
-      multFileStream.open(optionalArgs[3],std::fstream::in);
+      std::string multiplierFile = optionalArgs[3];
+      trim(multiplierFile);
 
-      if(multFileStream.is_open())
+      auto searchLoadedMultiplier = loadedMultiplierTables.find(multiplierFile);
+
+      if(searchLoadedMultiplier != loadedMultiplierTables.end())
       {
-        std::getline(multFileStream, line);
-
-        while (std::getline(multFileStream,line))
-        {
-          std::vector<std::string> cols = splitText(line, " ");
-
-          multiplierTable[cols[0]] = stof(cols[1]);
-        }
+        multiplierTable = searchLoadedMultiplier->second;
       }
+      else
+      {
+        std::fstream multFileStream;
+        multFileStream.open(multiplierFile,std::fstream::in);
 
-      multFileStream.close();
+        if(multFileStream.is_open())
+        {
+          std::getline(multFileStream, line);
+
+          while (std::getline(multFileStream,line))
+          {
+            std::vector<std::string> cols = splitText(line, " ");
+
+            multiplierTable[cols[0]] = stof(cols[1]);
+          }
+        }
+        else
+        {
+          printf("Multiplier not reads\n");
+        }
+
+        loadedMultiplierTables[multiplierFile] = multiplierTable;
+
+        multFileStream.close();
+      }
     }
 
 
@@ -289,50 +336,33 @@ void SWMMParallelNSGAII(int gen, int indIndex, int nreal, double *xreal, int nbi
     std::string outputfile = newswmmfile;
     replace(outputfile,extension,".out");
 
-    //read and replace variables
-
-    std::fstream readFileStream;
-    readFileStream.open(swmminputfile,std::fstream::in);
-
     std::fstream writeFileStream;
-    writeFileStream.open(newswmmfile,std::fstream::out | std::fstream::trunc);
+    writeFileStream.open(newswmmfile,std::fstream::out | std::fstream::trunc);\
 
-    if(readFileStream.is_open() && writeFileStream.is_open())
+    for(size_t i = 0; i < variables.size() ; i++)
     {
-      std::string allLines;
+      std::string variable = variables[i];
+      int varmult = varmultiplier[i];
 
-      while (std::getline(readFileStream,line))
+      if(varmult > 0)
       {
-
-        allLines += "\n" + line;
-      }
-
-      for(int i = 0; i < variables.size() ; i++)
-      {
-        std::string variable = variables[i];
-        int varmult = varmultiplier[i];
-
-        if(varmult > 0)
+        for(int f = 0 ; f < varmultiplier[i]; f++)
         {
-          for(int f = 0 ; f < varmultiplier[i]; f++)
-          {
-            std::string newVarName = variable + "_" + std::to_string(f);
-            double newValue =  multiplierTable[newVarName] * (1.0 + xreal[i] / 100);
-            replaceAll(allLines, newVarName, std::to_string(newValue));
-          }
-        }
-        else
-        {
-          replaceAll(allLines, variable, std::to_string(xreal[i]));
+          std::string newVarName = variable + "_" + std::to_string(f);
+          double newValue =  multiplierTable[newVarName] * (1.0 + xreal[i] / 100);
+          replaceAll(allLines," " + newVarName + " " , " " + std::to_string(newValue) + " ");
         }
       }
-
-      writeFileStream << allLines;
+      else
+      {
+        replaceAll(allLines, " " + variable + " ", " " + std::to_string(xreal[i]) + " ");
+      }
     }
 
-    readFileStream.close();
+    writeFileStream << allLines;
     writeFileStream.flush();
     writeFileStream.close();
+
 
     char *inpF = new char[newswmmfile.length() + 1] ;
     std::strcpy (inpF, newswmmfile.c_str());
@@ -352,7 +382,8 @@ void SWMMParallelNSGAII(int gen, int indIndex, int nreal, double *xreal, int nbi
     delete[] inpO;
     delete[] inpR;
 
-    for(int i = 4; i < optionalArgs.size(); i++)
+
+    for(size_t i = 4; i < optionalArgs.size(); i++)
     {
       std::vector<std::string> args = splitText(optionalArgs[i], " ");
 

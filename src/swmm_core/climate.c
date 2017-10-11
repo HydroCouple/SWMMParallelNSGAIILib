@@ -165,14 +165,14 @@ int  climate_readParams(Project* project, char* tok[], int ntoks)
 
     // --- identify keyword
     k = findmatch(tok[0], TempKeyWords);
-    if ( k < 0 ) return error_setInpError(ERR_KEYWORD, tok[0]);
+    if ( k < 0 ) return error_setInpError(project,ERR_KEYWORD, tok[0]);
     switch (k)
     {
       case 0: // Time series name
         // --- check that time series name exists
-        if ( ntoks < 2 ) return error_setInpError(ERR_ITEMS, "");
+        if ( ntoks < 2 ) return error_setInpError(project,ERR_ITEMS, "");
         i = project_findObject(project,TSERIES, tok[1]);
-        if ( i < 0 ) return error_setInpError(ERR_NAME, tok[1]);
+        if ( i < 0 ) return error_setInpError(project,ERR_NAME, tok[1]);
 
         // --- record the time series as being the data source for temperature
         project->Temp.dataSource = TSERIES_TEMP;
@@ -182,7 +182,7 @@ int  climate_readParams(Project* project, char* tok[], int ntoks)
 
       case 1: // Climate file
         // --- record file as being source of temperature data
-        if ( ntoks < 2 ) return error_setInpError(ERR_ITEMS, "");
+        if ( ntoks < 2 ) return error_setInpError(project,ERR_ITEMS, "");
         project->Temp.dataSource = FILE_TEMP;
 
         // --- save name and usage mode of external climate file
@@ -196,7 +196,7 @@ int  climate_readParams(Project* project, char* tok[], int ntoks)
             if ( *tok[2] != '*')
             {
                 if ( !datetime_strToDate(tok[2], &aDate) )
-                    return error_setInpError(ERR_DATETIME, tok[2]);
+                    return error_setInpError(project,ERR_DATETIME, tok[2]);
                 project->Temp.fileStartDate = aDate;
             }
         }
@@ -212,23 +212,23 @@ int  climate_readParams(Project* project, char* tok[], int ntoks)
         // --- otherwise read 12 monthly avg. wind speed values
         else
         {
-            if ( ntoks < 14 ) return error_setInpError(ERR_ITEMS, "");
+            if ( ntoks < 14 ) return error_setInpError(project,ERR_ITEMS, "");
             project->Wind.type = MONTHLY_WIND;
             for (i=0; i<12; i++)
             {
                 if ( !getDouble(tok[i+2], &y) )
-                    return error_setInpError(ERR_NUMBER, tok[i+2]);
+                    return error_setInpError(project,ERR_NUMBER, tok[i+2]);
                 project->Wind.aws[i] = y;
             }
         }
         break;
 
       case 3: // Snowmelt params
-        if ( ntoks < 7 ) return error_setInpError(ERR_ITEMS, "");
+        if ( ntoks < 7 ) return error_setInpError(project,ERR_ITEMS, "");
         for (i=1; i<7; i++)
         {
             if ( !getDouble(tok[i], &x[i-1]) )
-                return error_setInpError(ERR_NUMBER, tok[i]);
+                return error_setInpError(project,ERR_NUMBER, tok[i]);
         }
         // --- convert deg. C to deg. F for snowfall temperature
         if ( project->UnitSystem == SI ) x[0] = 9./5.*x[0] + 32.0;
@@ -242,16 +242,16 @@ int  climate_readParams(Project* project, char* tok[], int ntoks)
 
       case 4:  // Areal Depletion Curve data
         // --- check if data is for impervious or pervious areas
-        if ( ntoks < 12 ) return error_setInpError(ERR_ITEMS, "");
+        if ( ntoks < 12 ) return error_setInpError(project,ERR_ITEMS, "");
         if      ( match(tok[1], w_IMPERV) ) i = 0;
         else if ( match(tok[1], w_PERV)   ) i = 1;
-        else return error_setInpError(ERR_KEYWORD, tok[1]);
+        else return error_setInpError(project,ERR_KEYWORD, tok[1]);
 
         // --- read 10 fractional values
         for (j=0; j<10; j++)
         {
             if ( !getDouble(tok[j+2], &y) || y < 0.0 || y > 1.0 )
-                return error_setInpError(ERR_NUMBER, tok[j+2]);
+                return error_setInpError(project,ERR_NUMBER, tok[j+2]);
             project->Snow.adc[i][j] = y;
         }
         break;
@@ -283,14 +283,14 @@ int climate_readEvapParams(Project* project, char* tok[], int ntoks)
 
     // --- find keyword indicating what form the evaporation data is in
     k = findmatch(tok[0], EvapTypeWords);
-    if ( k < 0 ) return error_setInpError(ERR_KEYWORD, tok[0]);
+    if ( k < 0 ) return error_setInpError(project,ERR_KEYWORD, tok[0]);
 
     // --- check for RECOVERY pattern data
     if ( k == RECOVERY )
     {
-        if ( ntoks < 2 ) return error_setInpError(ERR_ITEMS, "");
+        if ( ntoks < 2 ) return error_setInpError(project,ERR_ITEMS, "");
         i = project_findObject(project,TIMEPATTERN, tok[1]);
-        if ( i < 0 ) return error_setInpError(ERR_NAME, tok[1]);
+        if ( i < 0 ) return error_setInpError(project,ERR_NAME, tok[1]);
         project->Evap.recoveryPattern = i;
         return 0;
     }
@@ -298,38 +298,38 @@ int climate_readEvapParams(Project* project, char* tok[], int ntoks)
     // --- check for no evaporation in wet periods
     if ( k == DRYONLY )
     {
-        if ( ntoks < 2 ) return error_setInpError(ERR_ITEMS, "");
+        if ( ntoks < 2 ) return error_setInpError(project,ERR_ITEMS, "");
         if      ( strcomp(tok[1], w_NO ) )  project->Evap.dryOnly = FALSE;
         else if ( strcomp(tok[1], w_YES ) ) project->Evap.dryOnly = TRUE;
-        else return error_setInpError(ERR_KEYWORD, tok[1]);
+        else return error_setInpError(project,ERR_KEYWORD, tok[1]);
         return 0;
     }
 
     // --- process data depending on its form
     project->Evap.type = k;
     if ( k != TEMPERATURE_EVAP && ntoks < 2 )
-        return error_setInpError(ERR_ITEMS, "");
+        return error_setInpError(project,ERR_ITEMS, "");
     switch ( k )
     {
       case CONSTANT_EVAP:
         // --- for constant evap., fill monthly avg. values with same number
         if ( !getDouble(tok[1], &x) )
-            return error_setInpError(ERR_NUMBER, tok[1]);
+            return error_setInpError(project,ERR_NUMBER, tok[1]);
         for (i=0; i<12; i++) project->Evap.monthlyEvap[i] = x;
         break;
 
       case MONTHLY_EVAP:
         // --- for monthly evap., read a value for each month of year
-        if ( ntoks < 13 ) return error_setInpError(ERR_ITEMS, "");
+        if ( ntoks < 13 ) return error_setInpError(project,ERR_ITEMS, "");
         for ( i=0; i<12; i++)
             if ( !getDouble(tok[i+1], &project->Evap.monthlyEvap[i]) )
-                return error_setInpError(ERR_NUMBER, tok[i+1]);
+                return error_setInpError(project,ERR_NUMBER, tok[i+1]);
         break;
 
       case TIMESERIES_EVAP:
         // --- for time series evap., read name of time series
 		  i = project_findObject(project, TSERIES, tok[1]);
-        if ( i < 0 ) return error_setInpError(ERR_NAME, tok[1]);
+	if ( i < 0 ) return error_setInpError(project,ERR_NAME, tok[1]);
         project->Evap.tSeries = i;
         project->Tseries[i].refersTo = TIMESERIES_EVAP;
         break;
@@ -339,11 +339,11 @@ int climate_readEvapParams(Project* project, char* tok[], int ntoks)
         //     if they are provided (default values are 1.0)
         if ( ntoks > 1 )
         {
-            if ( ntoks < 13 ) return error_setInpError(ERR_ITEMS, "");
+            if ( ntoks < 13 ) return error_setInpError(project,ERR_ITEMS, "");
             for (i=0; i<12; i++)
             {
                 if ( !getDouble(tok[i+1], &project->Evap.panCoeff[i]) )
-                    return error_setInpError(ERR_NUMBER, tok[i+1]);
+                    return error_setInpError(project,ERR_NUMBER, tok[i+1]);
             }
         }
         break;
@@ -374,33 +374,33 @@ int climate_readAdjustments(Project* project, char* tok[], int ntoks)
 
     if ( match(tok[0], "TEMP") )
     {
-        if ( ntoks < 13 )  return error_setInpError(ERR_ITEMS, "");
+        if ( ntoks < 13 )  return error_setInpError(project,ERR_ITEMS, "");
         for (i = 1; i < 13; i++)
         {
             if ( !getDouble(tok[i], &project->Adjust.temp[i-1]) )
-                return error_setInpError(ERR_NUMBER, tok[i]);
+                return error_setInpError(project,ERR_NUMBER, tok[i]);
         }
         return 0;
     }
 
     if ( match(tok[0], "EVAP") )
     {
-        if ( ntoks < 13 )  return error_setInpError(ERR_ITEMS, "");
+        if ( ntoks < 13 )  return error_setInpError(project,ERR_ITEMS, "");
         for (i = 1; i < 13; i++)
         {
             if ( !getDouble(tok[i], &project->Adjust.evap[i-1]) )
-                return error_setInpError(ERR_NUMBER, tok[i]);
+                return error_setInpError(project,ERR_NUMBER, tok[i]);
         }
         return 0;
     }
 
     if ( match(tok[0], "RAIN") )
     {
-        if ( ntoks < 13 )  return error_setInpError(ERR_ITEMS, "");
+        if ( ntoks < 13 )  return error_setInpError(project,ERR_ITEMS, "");
         for (i = 1; i < 13; i++)
         {
             if ( !getDouble(tok[i], &project->Adjust.rain[i-1]) )
-                return error_setInpError(ERR_NUMBER, tok[i]);
+                return error_setInpError(project,ERR_NUMBER, tok[i]);
         }
         return 0;
     }
@@ -409,16 +409,16 @@ int climate_readAdjustments(Project* project, char* tok[], int ntoks)
 ////
     if ( match(tok[0], "CONDUCT") )
     {
-        if ( ntoks < 13 )  return error_setInpError(ERR_ITEMS, "");
+        if ( ntoks < 13 )  return error_setInpError(project,ERR_ITEMS, "");
         for (i = 1; i < 13; i++)
         {
             if ( !getDouble(tok[i], &project->Adjust.hydcon[i-1]) )
-                return error_setInpError(ERR_NUMBER, tok[i]);
+                return error_setInpError(project,ERR_NUMBER, tok[i]);
         }
         return 0;
     }
 ////
-    return error_setInpError(ERR_KEYWORD, tok[0]);
+    return error_setInpError(project,ERR_KEYWORD, tok[0]);
 }
 
 //=============================================================================

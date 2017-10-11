@@ -128,7 +128,6 @@ void project_readInput(Project* project)
 
    // --- read project data from input file
    input_readData(project);
-
    if ( project->ErrorCode ) return;
 
    // --- establish starting & ending date/time
@@ -216,7 +215,7 @@ void project_validate(Project* project)
       {
          project->Curve[i].refersTo = j;
          project->Shape[j].curve = i;
-         if ( !shape_validate(&project->Shape[j], &project->Curve[i]) )
+         if ( !shape_validate(project, &project->Shape[j], &project->Curve[i]) )
             report_writeErrorMsg(project,ERR_CURVE_SEQUENCE, project->Curve[i].ID);
          j++;
       }
@@ -422,13 +421,13 @@ int project_readOption(Project* project, char* s1, char* s2)
 
    // --- determine which option is being read
    k = findmatch(s1, OptionWords);
-   if ( k < 0 ) return error_setInpError(ERR_KEYWORD, s1);
+   if ( k < 0 ) return error_setInpError(project,ERR_KEYWORD, s1);
    switch ( k )
    {
       // --- choice of flow units
       case FLOW_UNITS:
          m = findmatch(s2, FlowUnitWords);
-         if ( m < 0 ) return error_setInpError(ERR_KEYWORD, s2);
+         if ( m < 0 ) return error_setInpError(project,ERR_KEYWORD, s2);
          project->FlowUnits = m;
          if ( project->FlowUnits <= MGD ) project->UnitSystem = US;
          else                    project->UnitSystem = SI;
@@ -437,7 +436,7 @@ int project_readOption(Project* project, char* s1, char* s2)
          // --- choice of infiltration modeling method
       case INFIL_MODEL:
          m = findmatch(s2, InfilModelWords);
-         if ( m < 0 ) return error_setInpError(ERR_KEYWORD, s2);
+         if ( m < 0 ) return error_setInpError(project,ERR_KEYWORD, s2);
          project->InfilModel = m;
          break;
 
@@ -445,7 +444,7 @@ int project_readOption(Project* project, char* s1, char* s2)
       case ROUTE_MODEL:
          m = findmatch(s2, RouteModelWords);
          if ( m < 0 ) m = findmatch(s2, OldRouteModelWords);
-         if ( m < 0 ) return error_setInpError(ERR_KEYWORD, s2);
+         if ( m < 0 ) return error_setInpError(project,ERR_KEYWORD, s2);
          if ( m == NO_ROUTING ) project->IgnoreRouting = TRUE;
          else project->RouteModel = m;
          if ( project->RouteModel == EKW ) project->RouteModel = KW;
@@ -455,7 +454,7 @@ int project_readOption(Project* project, char* s1, char* s2)
       case START_DATE:
          if ( !datetime_strToDate(s2, &project->StartDate) )
          {
-            return error_setInpError(ERR_DATETIME, s2);
+            return error_setInpError(project,ERR_DATETIME, s2);
          }
          break;
 
@@ -463,7 +462,7 @@ int project_readOption(Project* project, char* s1, char* s2)
       case START_TIME:
          if ( !datetime_strToTime(s2, &project->StartTime) )
          {
-            return error_setInpError(ERR_DATETIME, s2);
+            return error_setInpError(project,ERR_DATETIME, s2);
          }
          break;
 
@@ -471,7 +470,7 @@ int project_readOption(Project* project, char* s1, char* s2)
       case END_DATE:
          if ( !datetime_strToDate(s2, &project->EndDate) )
          {
-            return error_setInpError(ERR_DATETIME, s2);
+            return error_setInpError(project,ERR_DATETIME, s2);
          }
          break;
 
@@ -479,7 +478,7 @@ int project_readOption(Project* project, char* s1, char* s2)
       case END_TIME:
          if ( !datetime_strToTime(s2, &project->EndTime) )
          {
-            return error_setInpError(ERR_DATETIME, s2);
+            return error_setInpError(project,ERR_DATETIME, s2);
          }
          break;
 
@@ -487,7 +486,7 @@ int project_readOption(Project* project, char* s1, char* s2)
       case REPORT_START_DATE:
          if ( !datetime_strToDate(s2, &project->ReportStartDate) )
          {
-            return error_setInpError(ERR_DATETIME, s2);
+            return error_setInpError(project,ERR_DATETIME, s2);
          }
          break;
 
@@ -495,7 +494,7 @@ int project_readOption(Project* project, char* s1, char* s2)
       case REPORT_START_TIME:
          if ( !datetime_strToTime(s2, &project->ReportStartTime) )
          {
-            return error_setInpError(ERR_DATETIME, s2);
+            return error_setInpError(project,ERR_DATETIME, s2);
          }
          break;
 
@@ -508,7 +507,7 @@ int project_readOption(Project* project, char* s1, char* s2)
          strcat(strDate, "/1947");
          if ( !datetime_strToDate(strDate, &aDate) )
          {
-            return error_setInpError(ERR_DATETIME, s2);
+            return error_setInpError(project,ERR_DATETIME, s2);
          }
          m = datetime_dayOfYear(aDate);
          if ( k == SWEEP_START ) project->SweepStart = m;
@@ -520,7 +519,7 @@ int project_readOption(Project* project, char* s1, char* s2)
          project->StartDryDays = atof(s2);
          if ( project->StartDryDays < 0.0 )
          {
-            return error_setInpError(ERR_NUMBER, s2);
+            return error_setInpError(project,ERR_NUMBER, s2);
          }
          break;
 
@@ -531,12 +530,12 @@ int project_readOption(Project* project, char* s1, char* s2)
       case REPORT_STEP:
          if ( !datetime_strToTime(s2, &aTime) )
          {
-            return error_setInpError(ERR_DATETIME, s2);
+            return error_setInpError(project,ERR_DATETIME, s2);
          }
          datetime_decodeTime(aTime, &h, &m, &s);
          h += 24*(int)aTime;
          s = s + 60*m + 3600*h;
-         if ( s <= 0 ) return error_setInpError(ERR_NUMBER, s2);
+         if ( s <= 0 ) return error_setInpError(project,ERR_NUMBER, s2);
          switch ( k )
          {
             case WET_STEP:     project->WetStep = s;     break;
@@ -548,7 +547,7 @@ int project_readOption(Project* project, char* s1, char* s2)
          // --- type of damping applied to inertial terms of dynamic wave routing
       case INERT_DAMPING:
          m = findmatch(s2, InertDampingWords);
-         if ( m < 0 ) return error_setInpError(ERR_KEYWORD, s2);
+         if ( m < 0 ) return error_setInpError(project,ERR_KEYWORD, s2);
          else project->InertDamping = m;
          break;
 
@@ -563,7 +562,7 @@ int project_readOption(Project* project, char* s1, char* s2)
       case IGNORE_QUALITY:
       case IGNORE_RDII:                                                        //(5.1.004)
          m = findmatch(s2, NoYesWords);
-         if ( m < 0 ) return error_setInpError(ERR_KEYWORD, s2);
+         if ( m < 0 ) return error_setInpError(project,ERR_KEYWORD, s2);
          switch ( k )
          {
             case ALLOW_PONDING:     project->AllowPonding    = m;  break;
@@ -581,19 +580,19 @@ int project_readOption(Project* project, char* s1, char* s2)
       case NORMAL_FLOW_LTD:
          m = findmatch(s2, NormalFlowWords);
          if ( m < 0 ) m = findmatch(s2, NoYesWords);
-         if ( m < 0 ) return error_setInpError(ERR_KEYWORD, s2);
+         if ( m < 0 ) return error_setInpError(project,ERR_KEYWORD, s2);
          project->NormalFlowLtd = m;
          break;
 
       case FORCE_MAIN_EQN:
          m = findmatch(s2, ForceMainEqnWords);
-         if ( m < 0 ) return error_setInpError(ERR_KEYWORD, s2);
+         if ( m < 0 ) return error_setInpError(project,ERR_KEYWORD, s2);
          project->ForceMainEqn = m;
          break;
 
       case LINK_OFFSETS:
          m = findmatch(s2, LinkOffsetWords);
-         if ( m < 0 ) return error_setInpError(ERR_KEYWORD, s2);
+         if ( m < 0 ) return error_setInpError(project,ERR_KEYWORD, s2);
          project->LinkOffsets = m;
          break;
 
@@ -603,7 +602,7 @@ int project_readOption(Project* project, char* s1, char* s2)
          if      ( strcomp(s2, "3") ) project->Compatibility = SWMM3;
          else if ( strcomp(s2, "4") ) project->Compatibility = SWMM4;
          else if ( strcomp(s2, "5") ) project->Compatibility = SWMM5;
-         else return error_setInpError(ERR_KEYWORD, s2);
+         else return error_setInpError(project,ERR_KEYWORD, s2);
          break;
 
          // --- routing or lengthening time step (in decimal seconds)
@@ -616,7 +615,7 @@ int project_readOption(Project* project, char* s1, char* s2)
          {
             if ( !datetime_strToTime(s2, &aTime) )
             {
-               return error_setInpError(ERR_NUMBER, s2);
+               return error_setInpError(project,ERR_NUMBER, s2);
             }
             else
             {
@@ -628,7 +627,7 @@ int project_readOption(Project* project, char* s1, char* s2)
          }
          if ( k == ROUTE_STEP )
          {
-            if ( tStep <= 0.0 ) return error_setInpError(ERR_NUMBER, s2);
+            if ( tStep <= 0.0 ) return error_setInpError(project,ERR_NUMBER, s2);
             project->RouteStep = tStep;
          }
          else project->LengtheningStep = MAX(0.0, tStep);
@@ -639,12 +638,12 @@ int project_readOption(Project* project, char* s1, char* s2)
          // --- minimum variable time step for dynamic wave routing
       case MIN_ROUTE_STEP:
          if ( !getDouble(s2, &project->MinRouteStep) || project->MinRouteStep < 0.0 )
-            return error_setInpError(ERR_NUMBER, s2);
+            return error_setInpError(project,ERR_NUMBER, s2);
          break;
 
       case NUM_THREADS:
          m = atoi(s2);
-         if ( m < 0 ) return error_setInpError(ERR_NUMBER, s2);
+         if ( m < 0 ) return error_setInpError(project,ERR_NUMBER, s2);
          project->NumThreads = m;
          break;
          ////
@@ -654,9 +653,9 @@ int project_readOption(Project* project, char* s1, char* s2)
          //     time step option not used)
       case VARIABLE_STEP:
          if ( !getDouble(s2, &project->CourantFactor) )
-            return error_setInpError(ERR_NUMBER, s2);
+            return error_setInpError(project,ERR_NUMBER, s2);
          if ( project->CourantFactor < 0.0 || project->CourantFactor > 2.0 )
-            return error_setInpError(ERR_NUMBER, s2);
+            return error_setInpError(project,ERR_NUMBER, s2);
          break;
 
          // --- minimum surface area (ft2 or sq. meters) associated with nodes
@@ -668,16 +667,16 @@ int project_readOption(Project* project, char* s1, char* s2)
          // --- minimum conduit slope (%)
       case MIN_SLOPE:
          if ( !getDouble(s2, &project->MinSlope) )
-            return error_setInpError(ERR_NUMBER, s2);
+            return error_setInpError(project,ERR_NUMBER, s2);
          if ( project->MinSlope < 0.0 || project->MinSlope >= 100 )
-            return error_setInpError(ERR_NUMBER, s2);
+            return error_setInpError(project,ERR_NUMBER, s2);
          project->MinSlope /= 100.0;
          break;
 
          // --- maximum trials / time step for dynamic wave routing
       case MAX_TRIALS:
          m = atoi(s2);
-         if ( m < 0 ) return error_setInpError(ERR_NUMBER, s2);
+         if ( m < 0 ) return error_setInpError(project,ERR_NUMBER, s2);
          project->MaxTrials = m;
          break;
 
@@ -685,7 +684,7 @@ int project_readOption(Project* project, char* s1, char* s2)
       case HEAD_TOL:
          if ( !getDouble(s2, &project->HeadTol) )
          {
-            return error_setInpError(ERR_NUMBER, s2);
+            return error_setInpError(project,ERR_NUMBER, s2);
          }
          break;
 
@@ -693,7 +692,7 @@ int project_readOption(Project* project, char* s1, char* s2)
       case SYS_FLOW_TOL:
          if ( !getDouble(s2, &project->SysFlowTol) )
          {
-            return error_setInpError(ERR_NUMBER, s2);
+            return error_setInpError(project,ERR_NUMBER, s2);
          }
          project->SysFlowTol /= 100.0;
          break;
@@ -702,7 +701,7 @@ int project_readOption(Project* project, char* s1, char* s2)
       case LAT_FLOW_TOL:
          if ( !getDouble(s2, &project->LatFlowTol) )
          {
-            return error_setInpError(ERR_NUMBER, s2);
+            return error_setInpError(project,ERR_NUMBER, s2);
          }
          project->LatFlowTol /= 100.0;
          break;

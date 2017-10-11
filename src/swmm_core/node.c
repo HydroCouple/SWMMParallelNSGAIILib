@@ -622,9 +622,9 @@ int junc_readParams(Project* project, int j, int k, char* tok[], int ntoks)
   double x[6];
   char*  id;
 
-  if ( ntoks < 2 ) return error_setInpError(ERR_ITEMS, "");
+  if ( ntoks < 2 ) return error_setInpError(project,ERR_ITEMS, "");
   id = project_findID(project, NODE, tok[0]);
-  if ( id == NULL ) return error_setInpError(ERR_NAME, tok[0]);
+  if ( id == NULL ) return error_setInpError(project,ERR_NAME, tok[0]);
 
   // --- parse invert elev., max. depth, init. depth, surcharged depth,
   //     & ponded area values
@@ -634,14 +634,14 @@ int junc_readParams(Project* project, int j, int k, char* tok[], int ntoks)
     if ( i < ntoks )
     {
       if ( ! getDouble(tok[i], &x[i-1]) )
-        return error_setInpError(ERR_NUMBER, tok[i]);
+        return error_setInpError(project,ERR_NUMBER, tok[i]);
     }
   }
 
   // --- check for non-negative values (except for invert elev.)
   for ( i = 1; i <= 4; i++ )
   {
-    if ( x[i] < 0.0 ) return error_setInpError(ERR_NUMBER, tok[i+1]);
+    if ( x[i] < 0.0 ) return error_setInpError(project,ERR_NUMBER, tok[i+1]);
   }
 
   // --- add parameters to junction object
@@ -674,20 +674,20 @@ int storage_readParams(Project* project, int j, int k, char* tok[], int ntoks)
   char*  id;
 
   // --- get ID name
-  if ( ntoks < 6 ) return error_setInpError(ERR_ITEMS, "");
+  if ( ntoks < 6 ) return error_setInpError(project,ERR_ITEMS, "");
   id = project_findID(project, NODE, tok[0]);
-  if ( id == NULL ) return error_setInpError(ERR_NAME, tok[0]);
+  if ( id == NULL ) return error_setInpError(project,ERR_NAME, tok[0]);
 
   // --- get invert elev, max. depth, & init. depth
   for ( i = 1; i <= 3; i++ )
   {
     if ( ! getDouble(tok[i], &x[i-1]) )
-      return error_setInpError(ERR_NUMBER, tok[i]);
+      return error_setInpError(project,ERR_NUMBER, tok[i]);
   }
 
   // --- get surf. area relation type
   m = findmatch(tok[4], RelationWords);
-  if ( m < 0 ) return error_setInpError(ERR_KEYWORD, tok[4]);
+  if ( m < 0 ) return error_setInpError(project,ERR_KEYWORD, tok[4]);
   x[3] = 0.0;                        // a1
   x[4] = 0.0;                        // a2
   x[5] = 0.0;                        // a0
@@ -703,7 +703,7 @@ int storage_readParams(Project* project, int j, int k, char* tok[], int ntoks)
       if ( i < ntoks )
       {
         if ( ! getDouble(tok[i], &x[i-2]) )
-          return error_setInpError(ERR_NUMBER, tok[i]);
+          return error_setInpError(project,ERR_NUMBER, tok[i]);
       }
     }
     n = 8;
@@ -713,7 +713,7 @@ int storage_readParams(Project* project, int j, int k, char* tok[], int ntoks)
   else
   {
     m = project_findObject(project, CURVE, tok[5]);
-    if ( m < 0 ) return error_setInpError(ERR_NAME, tok[5]);
+    if ( m < 0 ) return error_setInpError(project,ERR_NAME, tok[5]);
     x[6] = m;
     n = 6;
   }
@@ -722,7 +722,7 @@ int storage_readParams(Project* project, int j, int k, char* tok[], int ntoks)
   if ( ntoks > n)
   {
     if ( ! getDouble(tok[n], &x[7]) )
-      return error_setInpError(ERR_NUMBER, tok[n]);
+      return error_setInpError(project,ERR_NUMBER, tok[n]);
     n++;
   }
 
@@ -730,7 +730,7 @@ int storage_readParams(Project* project, int j, int k, char* tok[], int ntoks)
   if ( ntoks > n )
   {
     if ( ! getDouble(tok[n], &x[8]) )
-      return error_setInpError(ERR_NUMBER, tok[n]);
+      return error_setInpError(project,ERR_NUMBER, tok[n]);
     n++;
   }
 
@@ -1005,12 +1005,12 @@ int divider_readParams(Project* project, int j, int k, char* tok[], int ntoks)
   char*  id;
 
   // --- get ID name
-  if ( ntoks < 4 ) return error_setInpError(ERR_ITEMS, "");
+  if ( ntoks < 4 ) return error_setInpError(project,ERR_ITEMS, "");
   id = project_findID(project, NODE, tok[0]);
-  if ( id == NULL ) return error_setInpError(ERR_NAME, tok[0]);
+  if ( id == NULL ) return error_setInpError(project,ERR_NAME, tok[0]);
 
   // --- get invert elev.
-  if ( ! getDouble(tok[1], &x[0]) ) return error_setInpError(ERR_NUMBER, tok[1]);
+  if ( ! getDouble(tok[1], &x[0]) ) return error_setInpError(project,ERR_NUMBER, tok[1]);
 
   // --- initialize parameter values
   for ( i=1; i<11; i++) x[i] = 0.0;
@@ -1022,23 +1022,23 @@ int divider_readParams(Project* project, int j, int k, char* tok[], int ntoks)
   else
   {
     m1 = project_findObject(project, LINK, tok[2]);
-    if ( m1 < 0 ) return error_setInpError(ERR_NAME, tok[2]);
+    if ( m1 < 0 ) return error_setInpError(project,ERR_NAME, tok[2]);
     x[1] = m1;
   }
 
   // --- get divider type
   n = 4;
   m1 = findmatch(tok[3], DividerTypeWords);
-  if ( m1 < 0 ) return error_setInpError(ERR_KEYWORD, tok[3]);
+  if ( m1 < 0 ) return error_setInpError(project,ERR_KEYWORD, tok[3]);
   x[2] = m1;
 
   // --- get index of flow diversion curve for Tabular divider
   x[3] = -1;
   if ( m1 == TABULAR_DIVIDER )
   {
-    if ( ntoks < 5 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 5 ) return error_setInpError(project,ERR_ITEMS, "");
     m2 = project_findObject(project, CURVE, tok[4]);
-    if ( m2 < 0 ) return error_setInpError(ERR_NAME, tok[4]);
+    if ( m2 < 0 ) return error_setInpError(project,ERR_NAME, tok[4]);
     x[3] = m2;
     n = 5;
   }
@@ -1046,19 +1046,19 @@ int divider_readParams(Project* project, int j, int k, char* tok[], int ntoks)
   // --- get cutoff flow for Cutoff divider
   if ( m1 == CUTOFF_DIVIDER )
   {
-    if ( ntoks < 5 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 5 ) return error_setInpError(project,ERR_ITEMS, "");
     if ( ! getDouble(tok[4], &x[4]) )
-      return error_setInpError(ERR_NUMBER, tok[4]);
+      return error_setInpError(project,ERR_NUMBER, tok[4]);
     n = 5;
   }
 
   // --- get qmin, dhMax, & cWeir for Weir divider
   if ( m1 == WEIR_DIVIDER )
   {
-    if ( ntoks < 7 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 7 ) return error_setInpError(project,ERR_ITEMS, "");
     for (i=4; i<7; i++)
       if ( ! getDouble(tok[i], &x[i]) )
-        return error_setInpError(ERR_NUMBER, tok[i]);
+        return error_setInpError(project,ERR_NUMBER, tok[i]);
     n = 7;
   }
 
@@ -1072,7 +1072,7 @@ int divider_readParams(Project* project, int j, int k, char* tok[], int ntoks)
   {
     if ( ! getDouble(tok[i], &x[m]) )
     {
-      return error_setInpError(ERR_NUMBER, tok[i]);
+      return error_setInpError(project,ERR_NUMBER, tok[i]);
     }
     m++;
   }
@@ -1223,14 +1223,14 @@ int outfall_readParams(Project* project, int j, int k, char* tok[], int ntoks)
   double x[7];                                                               //(5.1.008)
   char*  id;
 
-  if ( ntoks < 3 ) return error_setInpError(ERR_ITEMS, "");
+  if ( ntoks < 3 ) return error_setInpError(project,ERR_ITEMS, "");
   id = project_findID(project, NODE, tok[0]);                      // node ID
   if ( id == NULL )
-    return error_setInpError(ERR_NAME, tok[0]);
+    return error_setInpError(project,ERR_NAME, tok[0]);
   if ( ! getDouble(tok[1], &x[0]) )                       // invert elev.
-    return error_setInpError(ERR_NUMBER, tok[1]);
+    return error_setInpError(project,ERR_NUMBER, tok[1]);
   i = findmatch(tok[2], OutfallTypeWords);               // outfall type
-  if ( i < 0 ) return error_setInpError(ERR_KEYWORD, tok[2]);
+  if ( i < 0 ) return error_setInpError(project,ERR_KEYWORD, tok[2]);
   x[1] = i;                                              // outfall type
   x[2] = 0.0;                                            // fixed stage
   x[3] = -1.;                                            // tidal curve
@@ -1241,22 +1241,22 @@ int outfall_readParams(Project* project, int j, int k, char* tok[], int ntoks)
   n = 4;
   if ( i >= FIXED_OUTFALL )
   {
-    if ( ntoks < 4 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 4 ) return error_setInpError(project,ERR_ITEMS, "");
     n = 5;
     switch ( i )
     {
       case FIXED_OUTFALL:                                // fixed stage
         if ( ! getDouble(tok[3], &x[2]) )
-          return error_setInpError(ERR_NUMBER, tok[3]);
+          return error_setInpError(project,ERR_NUMBER, tok[3]);
         break;
       case TIDAL_OUTFALL:                                // tidal curve
         m = project_findObject(project, CURVE, tok[3]);
-        if ( m < 0 ) return error_setInpError(ERR_NAME, tok[3]);
+        if ( m < 0 ) return error_setInpError(project,ERR_NAME, tok[3]);
         x[3] = m;
         break;
       case TIMESERIES_OUTFALL:                           // stage time series
         m = project_findObject(project, TSERIES, tok[3]);
-        if ( m < 0 ) return error_setInpError(ERR_NAME, tok[3]);
+        if ( m < 0 ) return error_setInpError(project,ERR_NAME, tok[3]);
         x[4] = m;
         project->Tseries[m].refersTo = TIMESERIES_OUTFALL;
     }
@@ -1264,7 +1264,7 @@ int outfall_readParams(Project* project, int j, int k, char* tok[], int ntoks)
   if ( ntoks == n )
   {
     m = findmatch(tok[n-1], NoYesWords);               // flap gate
-    if ( m < 0 ) return error_setInpError(ERR_KEYWORD, tok[n-1]);
+    if ( m < 0 ) return error_setInpError(project,ERR_KEYWORD, tok[n-1]);
     x[5] = m;
   }
 
@@ -1272,7 +1272,7 @@ int outfall_readParams(Project* project, int j, int k, char* tok[], int ntoks)
   if ( ntoks == n+1)
   {
     m = project_findObject(project, SUBCATCH, tok[n]);
-    if ( m < 0 ) return error_setInpError(ERR_NAME, tok[n]);
+    if ( m < 0 ) return error_setInpError(project,ERR_NAME, tok[n]);
     x[6] = m;
   }
   ////

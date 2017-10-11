@@ -1,6 +1,6 @@
 # This file contains information about inputs as read by the program
 
- Population size = 10
+ Population size = 8
  Number of generations = 10
  Number of objective functions = 2
  Number of constraints = 0
@@ -757,4 +757,4 @@
  Upper limit of real variable 375 = 1.200000e+01
  Lower limit of real variable 376 = 2.000000e+00
  Upper limit of real variable 376 = 4.000000e+01
- Lower limit
+ Lower limit 

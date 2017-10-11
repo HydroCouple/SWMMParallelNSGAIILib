@@ -50,6 +50,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include "mathexpr.h"
+#include "globals.h"
 
 #define MAX_STACK_SIZE  1024
 
@@ -68,14 +69,14 @@ typedef struct TreeNode ExprTree;
 
 // Local variables
 //----------------
-static int    Err;
-static int    Bc;
-static int    PrevLex, CurLex;
-static int    Len, Pos;
-static char   *S;
-static char   Token[255];
-static int    Ivar;
-static double Fvalue;
+//static int    project->Err;
+//static int    project->Bc;
+//static int    project->PrevLex, project->CurLex;
+//static int    project->Len,  project->Pos;
+//static char   *project->S;
+//static char    project->Token[255];
+//static int    project->Ivar;
+//static double project->Fvalue;
 
 // math function names
 char *MathFunc[] =  {"COS", "SIN", "TAN", "COT", "ABS", "SGN",
@@ -88,13 +89,13 @@ char *MathFunc[] =  {"COS", "SIN", "TAN", "COT", "ABS", "SGN",
 static int        sametext(char *, char *);
 static int        isDigit(char);
 static int        isLetter(char);
-static void       getToken(void);
-static int        getMathFunc(void);
-static int        getVariable(struct Project* project);
-static int        getOperand(void);
+static void       getToken(Project *project);
+static int        getMathFunc(Project *project);
+static int        getVariable(Project* project);
+static int        getOperand(Project* project);
 static int        getLex(Project* project);
-static double     getNumber(void);
-static ExprTree * newNode(void);
+static double     getNumber(Project* project);
+static ExprTree * newNode(Project *project);
 static ExprTree * getSingleOp(Project* project, int *);
 static ExprTree * getOp(Project* project, int *);
 static ExprTree * getTree(Project* project);
@@ -146,28 +147,28 @@ int isLetter(char c)
 
 //=============================================================================
 
-void getToken()
+void getToken(Project *project)
 {
     char c[] = " ";
-    strcpy(Token, "");
-    while ( Pos <= Len &&
-        ( isLetter(S[Pos]) || isDigit(S[Pos]) ) )
+    strcpy(project->Token, "");
+    while (project->Pos <= project->Len &&
+        ( isLetter(project->S[project->Pos]) || isDigit(project->S[project->Pos]) ) )
     {
-        c[0] = S[Pos];
-        strcat(Token, c);
-        Pos++;
+        c[0] = project->S[ project->Pos];
+        strcat( project->Token, c);
+         project->Pos++;
     }
-    Pos--;
+     project->Pos--;
 }
 
 //=============================================================================
 
-int getMathFunc()
+int getMathFunc(Project *project)
 {
     int i = 0;
     while (MathFunc[i] != NULL)
     {
-        if (sametext(MathFunc[i], Token)) return i+10;
+        if (sametext(MathFunc[i],  project->Token)) return i+10;
         i++;
     }
     return(0);
@@ -178,14 +179,14 @@ int getMathFunc()
 int getVariable(Project* project)
 {
     if ( !getVariableIndex ) return 0;
-    Ivar = getVariableIndex(project,Token);
-    if (Ivar >= 0) return 8;
+    project->Ivar = getVariableIndex(project, project->Token);
+    if (project->Ivar >= 0) return 8;
     return 0;
 }
 
 //=============================================================================
 
-double getNumber()
+double getNumber(Project* project)
 {
     char c[] = " ";
     char sNumber[255];
@@ -193,74 +194,74 @@ double getNumber()
 
     /* --- get whole number portion of number */
     strcpy(sNumber, "");
-    while (Pos < Len && isDigit(S[Pos]))
+    while ( project->Pos < project->Len && isDigit(project->S[ project->Pos]))
     {
-        c[0] = S[Pos];
+        c[0] = project->S[ project->Pos];
         strcat(sNumber, c);
-        Pos++;
+         project->Pos++;
     }
 
     /* --- get fractional portion of number */
-    if (Pos < Len)
+    if ( project->Pos < project->Len)
     {
-        if (S[Pos] == '.')
+        if (project->S[ project->Pos] == '.')
         {
             strcat(sNumber, ".");
-            Pos++;
-            while (Pos < Len && isDigit(S[Pos]))
+             project->Pos++;
+            while ( project->Pos < project->Len && isDigit(project->S[ project->Pos]))
             {
-                c[0] = S[Pos];
+                c[0] = project->S[ project->Pos];
                 strcat(sNumber, c);  
-                Pos++;
+                 project->Pos++;
             }
         }
 
         /* --- get exponent */
-        if (Pos < Len && (S[Pos] == 'e' || S[Pos] == 'E'))
+        if ( project->Pos < project->Len && (project->S[ project->Pos] == 'e' || project->S[ project->Pos] == 'E'))
         {
             strcat(sNumber, "E");  
-            Pos++;
-            if (Pos >= Len) errflag = 1;
+             project->Pos++;
+            if ( project->Pos >= project->Len) errflag = 1;
             else
             {
-                if (S[Pos] == '-' || S[Pos] == '+')
+                if (project->S[ project->Pos] == '-' || project->S[ project->Pos] == '+')
                 {
-                    c[0] = S[Pos];
+                    c[0] = project->S[ project->Pos];
                     strcat(sNumber, c);  
-                    Pos++;
+                     project->Pos++;
                 }
-                if (Pos >= Len || !isDigit(S[Pos])) errflag = 1;
-                else while ( Pos < Len && isDigit(S[Pos]))
+                if ( project->Pos >= project->Len || !isDigit(project->S[ project->Pos])) errflag = 1;
+                else while (  project->Pos < project->Len && isDigit(project->S[ project->Pos]))
                 {
-                    c[0] = S[Pos];
+                    c[0] = project->S[ project->Pos];
                     strcat(sNumber, c);  
-                    Pos++;
+                     project->Pos++;
                 }
             }
         }
     }
-    Pos--;
+     project->Pos--;
     if (errflag) return 0;
     else return atof(sNumber);
 }
 
 //=============================================================================
 
-int getOperand()
+int getOperand(Project* project)
 {
     int code;
-    switch(S[Pos])
+    switch(project->S[ project->Pos])
     {
       case '(': code = 1;  break;
       case ')': code = 2;  break;
       case '+': code = 3;  break;
       case '-': code = 4;
-        if (Pos < Len-1 &&
-            isDigit(S[Pos+1]) &&
-            (CurLex == 0 || CurLex == 1))
+        if ( project->Pos < project->Len-1 &&
+            isDigit(project->S[ project->Pos+1]) &&
+            (project->CurLex == 0 || project->CurLex == 1))
         {
-            Pos++;
-            Fvalue = -getNumber();
+             project->Pos++;
+            project->Fvalue = -getNumber(project);
             code = 7;
         }
         break;
@@ -279,40 +280,40 @@ int getLex(Project* project)
     int n;
 
     /* --- skip spaces */
-    while ( Pos < Len && S[Pos] == ' ' ) Pos++;
-    if ( Pos >= Len ) return 0;
+    while (  project->Pos < project->Len && project->S[ project->Pos] == ' ' )  project->Pos++;
+    if (  project->Pos >= project->Len ) return 0;
 
     /* --- check for operand */
-    n = getOperand();
+    n = getOperand(project);
 
     /* --- check for function/variable/number */
     if ( n == 0 )
     {
-        if ( isLetter(S[Pos]) )
+        if ( isLetter(project->S[ project->Pos]) )
         {
-            getToken();
-            n = getMathFunc();
+            getToken(project);
+            n = getMathFunc(project);
             if ( n == 0 ) n = getVariable(project);
         }
-        else if ( isDigit(S[Pos]) )
+        else if ( isDigit(project->S[ project->Pos]) )
         {
             n = 7;
-            Fvalue = getNumber();
+            project->Fvalue = getNumber(project);
         }
     }
-    Pos++;
-    PrevLex = CurLex;
-    CurLex = n;
+     project->Pos++;
+    project->PrevLex = project->CurLex;
+    project->CurLex = n;
     return n;
 }
 
 //=============================================================================
 
-ExprTree * newNode()
+ExprTree * newNode(Project *project)
 {
     ExprTree *node;
     node = (ExprTree *) malloc(sizeof(ExprTree));
-    if (!node) Err = 2;
+    if (!node) project->Err = 2;
     else
     {
         node->opcode = 0;
@@ -337,7 +338,7 @@ ExprTree * getSingleOp(Project* project,int *lex)
     /* --- open parenthesis, so continue to grow the tree */
     if ( *lex == 1 )
     {
-        Bc++;
+        project->Bc++;
 		left = getTree(project);
     }
 
@@ -346,7 +347,7 @@ ExprTree * getSingleOp(Project* project,int *lex)
         /* --- Error if not a singleton operand */
         if ( *lex < 7 || *lex == 9 || *lex > 30)
         {
-            Err = 1;
+            project->Err = 1;
             return NULL;
         }
 
@@ -355,10 +356,10 @@ ExprTree * getSingleOp(Project* project,int *lex)
         /* --- simple number or variable name */
         if ( *lex == 7 || *lex == 8 )
         {
-            left = newNode();
+            left = newNode(project);
             left->opcode = opcode;
-            if ( *lex == 7 ) left->fvalue = Fvalue;
-            if ( *lex == 8 ) left->ivar = Ivar;
+            if ( *lex == 7 ) left->fvalue = project->Fvalue;
+            if ( *lex == 8 ) left->ivar = project->Ivar;
         }
 
         /* --- function which must have a '(' after it */
@@ -367,11 +368,11 @@ ExprTree * getSingleOp(Project* project,int *lex)
             *lex = getLex(project);
             if ( *lex != 1 )
             {
-               Err = 1;
+               project->Err = 1;
                return NULL;
             }
-            Bc++;
-            left = newNode();
+            project->Bc++;
+            left = newNode(project);
 			left->left = getTree(project);
             left->opcode = opcode;
         }
@@ -390,13 +391,13 @@ ExprTree * getSingleOp(Project* project,int *lex)
         }
         if ( *lex != 7 )
         {
-            Err = 1;
+            project->Err = 1;
             return NULL;
         }
-        right = newNode();
+        right = newNode(project);
         right->opcode = *lex;
-        right->fvalue = Fvalue;
-        node = newNode();
+        right->fvalue = project->Fvalue;
+        node = newNode(project);
         node->left = left;
         node->right = right;
         node->opcode = 31;
@@ -406,7 +407,7 @@ ExprTree * getSingleOp(Project* project,int *lex)
 			*lex = getLex(project);
             if ( *lex != 2 )
             {
-                Err = 1;
+                project->Err = 1;
                 return NULL;
             }
         }
@@ -426,7 +427,7 @@ ExprTree * getOp(Project* project, int *lex)
     int neg = 0;
 
     *lex = getLex(project);
-    if (PrevLex == 0 || PrevLex == 1)
+    if (project->PrevLex == 0 || project->PrevLex == 1)
     {
         if ( *lex == 4 )
         {
@@ -441,8 +442,8 @@ ExprTree * getOp(Project* project, int *lex)
         opcode = *lex;
 		*lex = getLex(project);
 		right = getSingleOp(project,lex);
-        node = newNode();
-        if (Err) return NULL;
+	node = newNode(project);
+	if (project->Err) return NULL;
         node->left = left;
         node->right = right;
         node->opcode = opcode;
@@ -450,8 +451,8 @@ ExprTree * getOp(Project* project, int *lex)
     }
     if ( neg )
     {
-        node = newNode();
-        if (Err) return NULL;
+        node = newNode(project);
+        if (project->Err) return NULL;
         node->left = left;
         node->right = NULL;
         node->opcode = 9;
@@ -475,20 +476,20 @@ ExprTree * getTree(Project* project)
     {
         if ( lex == 0 || lex == 2 )
         {
-            if ( lex == 2 ) Bc--;
+            if ( lex == 2 ) project->Bc--;
             break;
         }
 
         if (lex != 3 && lex != 4 )
         {
-            Err = 1;
+            project->Err = 1;
             break;
         }
 
         opcode = lex;
 		right = getOp(project, &lex);
-        node = newNode();
-        if (Err) break;
+	node = newNode(project);
+	if (project->Err) break;
         node->left = left;
         node->right = right;
         node->opcode = opcode;
@@ -756,15 +757,15 @@ MathExpr * mathexpr_create(Project*  project, char *formula, int(*getVar) (struc
     MathExpr *expr = NULL;
     MathExpr *result = NULL;
     getVariableIndex = getVar;
-    Err = 0;
-    PrevLex = 0;
-    CurLex = 0;
-    S = formula;
-    Len = strlen(S);
-    Pos = 0;
-    Bc = 0;
+    project->Err = 0;
+    project->PrevLex = 0;
+    project->CurLex = 0;
+    project->S = formula;
+    project->Len = strlen(project->S);
+     project->Pos = 0;
+    project->Bc = 0;
 	tree = getTree(project);
-    if (Bc == 0 && Err == 0)
+    if (project->Bc == 0 && project->Err == 0)
     {
 	    traverseTree(tree, &expr);
 	    while (expr)

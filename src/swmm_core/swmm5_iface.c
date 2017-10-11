@@ -5,9 +5,13 @@
 // Remember to #include the file swmm5_iface.h in the calling program.
 
 #include <stdio.h>
-//#include <windows.h>
 #include "swmm5_iface.h"
 #include "swmm5.h"
+#include "globals.h"
+
+#ifdef USE_OPENMP
+#include <omp.h>
+#endif
 
 //#include "globals.h"
 
@@ -73,15 +77,16 @@ int RunSwmmDll(char* inpFile, char* rptFile, char* outFile)
 {
   int err;
   double elapsedTime;
-  Project *currentProject;
+  Project *currentProject =  NULL;
 
   // --- open a SWMM project
+
   currentProject = swmm_open(inpFile, rptFile, outFile);
 
   if (!currentProject->ErrorCode)
   {
     // --- initialize all processing systems
-    err = swmm_start(currentProject, 1);
+    err = swmm_start(currentProject, TRUE);
 
     if (err == 0)
     {
@@ -89,7 +94,7 @@ int RunSwmmDll(char* inpFile, char* rptFile, char* outFile)
       do
       {
         // --- allow Windows to process any pending events
-        ProcessMessages();
+        //        ProcessMessages();
 
         // --- extend the simulation by one routing time step
         err = swmm_step(currentProject, &elapsedTime);
@@ -106,9 +111,11 @@ int RunSwmmDll(char* inpFile, char* rptFile, char* outFile)
     }
   }
 
+  if (currentProject->Fout.mode == SCRATCH_FILE)
+    swmm_report(currentProject);
+
   // --- close the project
-  swmm_close(currentProject);
-  return err;
+  return swmm_close(currentProject);
 }
 
 
@@ -223,10 +230,10 @@ IFaceData *OpenSwmmOutFile(char* outFile, int *error)
 
   // --- compute number of bytes of results values used per time period
   faceData->BytesPerPeriod = 2*RECORDSIZE +      // date value (a double)
-                   (faceData->SWMM_Nsubcatch*faceData->SubcatchVars +
-                    faceData->SWMM_Nnodes*faceData->NodeVars+
-                    faceData->SWMM_Nlinks*faceData->LinkVars +
-                    faceData->SysVars)*RECORDSIZE;
+                             (faceData->SWMM_Nsubcatch*faceData->SubcatchVars +
+                              faceData->SWMM_Nnodes*faceData->NodeVars+
+                              faceData->SWMM_Nlinks*faceData->LinkVars +
+                              faceData->SysVars)*RECORDSIZE;
 
   // --- return with file left open
   return faceData;

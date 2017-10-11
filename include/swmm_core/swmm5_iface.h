@@ -16,7 +16,7 @@
 extern "C" {
 #endif
 
-typedef struct
+typedef struct IFaceData
 {
    int  SWMM_Nperiods;           // number of reporting periods
    int  SWMM_FlowUnits;          // flow units code
@@ -33,8 +33,7 @@ typedef struct
    int    StartPos;                // file position where results start
    int    BytesPerPeriod;          // bytes used for results in each period
    FILE *Fout;
-}
-IFaceData;
+}IFaceData;
 
 
 int    RunSwmmExe(char* cmdLine);

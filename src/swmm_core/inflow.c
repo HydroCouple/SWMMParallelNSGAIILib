@@ -52,23 +52,23 @@ int inflow_readExtInflow(Project* project, char* tok[], int ntoks)
     TExtInflow* inflow;                // external inflow object
 
     // --- find index of node receiving the inflow
-    if ( ntoks < 3 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 3 ) return error_setInpError(project,ERR_ITEMS, "");
 	j = project_findObject(project, NODE, tok[0]);
-    if ( j < 0 ) return error_setInpError(ERR_NAME, tok[0]);
+    if ( j < 0 ) return error_setInpError(project,ERR_NAME, tok[0]);
 
     // --- find index of inflow pollutant or use -1 for FLOW
 	param = project_findObject(project, POLLUT, tok[1]);
     if ( param < 0 )
     {
         if ( match(tok[1], w_FLOW) ) param = -1;
-        else return error_setInpError(ERR_NAME, tok[1]);
+        else return error_setInpError(project,ERR_NAME, tok[1]);
     }
 
     // --- find index of inflow time series (if supplied) in data base
     if ( strlen(tok[2]) > 0 )
     {
 		tseries = project_findObject(project, TSERIES, tok[2]);
-        if ( tseries < 0 ) return error_setInpError(ERR_NAME, tok[2]);
+	if ( tseries < 0 ) return error_setInpError(project,ERR_NAME, tok[2]);
         project->Tseries[tseries].refersTo = EXTERNAL_INFLOW;
     }
 
@@ -84,14 +84,14 @@ int inflow_readExtInflow(Project* project, char* tok[], int ntoks)
     {
         if      ( match(tok[3], w_CONCEN) ) type = CONCEN_INFLOW;
         else if ( match(tok[3], w_MASS) )   type = MASS_INFLOW;
-        else    return error_setInpError(ERR_KEYWORD, tok[3]);
+        else    return error_setInpError(project,ERR_KEYWORD, tok[3]);
         if ( ntoks >= 5 && type == MASS_INFLOW )
         {
             if ( ! getDouble(tok[4], &cf) )
             {
-                return error_setInpError(ERR_NUMBER, tok[4]);
+                return error_setInpError(project,ERR_NUMBER, tok[4]);
             }
-            if ( cf <= 0.0 ) return error_setInpError(ERR_NUMBER, tok[4]);
+            if ( cf <= 0.0 ) return error_setInpError(project,ERR_NUMBER, tok[4]);
         }
     }
 
@@ -100,14 +100,14 @@ int inflow_readExtInflow(Project* project, char* tok[], int ntoks)
     {
         if ( ! getDouble(tok[5], &sf) )
         {
-            return error_setInpError(ERR_NUMBER, tok[5]);
+            return error_setInpError(project,ERR_NUMBER, tok[5]);
         }
     }
     if ( ntoks >= 7 )
     {
         if ( ! getDouble(tok[6], &baseline) )
         {
-            return error_setInpError(ERR_NUMBER, tok[6]);
+            return error_setInpError(project,ERR_NUMBER, tok[6]);
         }
     }
 
@@ -115,7 +115,7 @@ int inflow_readExtInflow(Project* project, char* tok[], int ntoks)
     if ( ntoks >= 8 )
     {
 		basePat = project_findObject(project, TIMEPATTERN, tok[7]);
-        if ( basePat < 0 ) return error_setInpError(ERR_NAME, tok[7]);
+	if ( basePat < 0 ) return error_setInpError(project,ERR_NAME, tok[7]);
     } 
 
     // --- include LperFT3 term in conversion factor for MASS_INFLOW
@@ -133,7 +133,7 @@ int inflow_readExtInflow(Project* project, char* tok[], int ntoks)
     if ( inflow == NULL )
     {
         inflow = (TExtInflow *) malloc(sizeof(TExtInflow));
-        if ( inflow == NULL ) return error_setInpError(ERR_MEMORY, "");
+        if ( inflow == NULL ) return error_setInpError(project,ERR_MEMORY, "");
         inflow->next = project->Node[j].extInflow;
         project->Node[j].extInflow = inflow;
     }
@@ -221,21 +221,21 @@ int inflow_readDwfInflow(Project* project, char* tok[], int ntoks)
     TDwfInflow* inflow;                // dry weather flow inflow object
 
     // --- find index of node receiving the inflow
-    if ( ntoks < 3 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 3 ) return error_setInpError(project,ERR_ITEMS, "");
 	j = project_findObject(project, NODE, tok[0]);
-    if ( j < 0 ) return error_setInpError(ERR_NAME, tok[0]);
+    if ( j < 0 ) return error_setInpError(project,ERR_NAME, tok[0]);
 
     // --- find index of inflow pollutant (-1 for FLOW) 
 	k = project_findObject(project, POLLUT, tok[1]);
     if ( k < 0 )
     {
         if ( match(tok[1], w_FLOW) ) k = -1;
-        else return error_setInpError(ERR_NAME, tok[1]);
+        else return error_setInpError(project,ERR_NAME, tok[1]);
     }
 
     // --- get avg. value of DWF inflow
     if ( !getDouble(tok[2], &x) )
-        return error_setInpError(ERR_NUMBER, tok[2]);
+        return error_setInpError(project,ERR_NUMBER, tok[2]);
     if ( k == -1 ) x /= UCF(project,FLOW);
 
     // --- get time patterns assigned to the inflow
@@ -245,7 +245,7 @@ int inflow_readDwfInflow(Project* project, char* tok[], int ntoks)
         if ( i >= ntoks ) break;
         if ( strlen(tok[i]) == 0 ) continue;
 		m = project_findObject(project, TIMEPATTERN, tok[i]);
-        if ( m < 0 ) return error_setInpError(ERR_NAME, tok[i]);
+	if ( m < 0 ) return error_setInpError(project,ERR_NAME, tok[i]);
         pats[i-3] = m;
     }
 
@@ -261,7 +261,7 @@ int inflow_readDwfInflow(Project* project, char* tok[], int ntoks)
     if ( inflow == NULL )
     {
         inflow = (TDwfInflow *) malloc(sizeof(TDwfInflow));
-        if ( inflow == NULL ) return error_setInpError(ERR_MEMORY, "");
+        if ( inflow == NULL ) return error_setInpError(project,ERR_MEMORY, "");
         inflow->next = project->Node[j].dwfInflow;
         project->Node[j].dwfInflow = inflow;
     }
@@ -388,11 +388,11 @@ int inflow_readDwfPattern(Project* project, char* tok[], int ntoks)
     int i, j, k, n = 1;
 
     // --- check for minimum number of tokens
-    if ( ntoks < 2 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 2 ) return error_setInpError(project,ERR_ITEMS, "");
 
     // --- check that pattern exists in database
 	j = project_findObject(project, TIMEPATTERN, tok[0]);
-    if ( j < 0 ) return error_setInpError(ERR_NAME, tok[0]);
+    if ( j < 0 ) return error_setInpError(project,ERR_NAME, tok[0]);
 
     // --- check if this is first line of pattern
     //     (ID pointer will not have been assigned yet)
@@ -401,7 +401,7 @@ int inflow_readDwfPattern(Project* project, char* tok[], int ntoks)
         // --- assign ID pointer & pattern type
 		project->Pattern[j].ID = project_findID(project, TIMEPATTERN, tok[0]);
         k = findmatch(tok[1], PatternTypeWords);
-        if ( k < 0 ) return error_setInpError(ERR_KEYWORD, tok[1]);
+        if ( k < 0 ) return error_setInpError(project,ERR_KEYWORD, tok[1]);
         project->Pattern[j].type = k;
         n = 2;
     }
@@ -411,7 +411,7 @@ int inflow_readDwfPattern(Project* project, char* tok[], int ntoks)
     {
         i = project->Pattern[j].count;
         if ( !getDouble(tok[n], &project->Pattern[j].factor[i]) )
-            return error_setInpError(ERR_NUMBER, tok[n]);
+            return error_setInpError(project,ERR_NUMBER, tok[n]);
         project->Pattern[j].count++;
         n++;
     }

@@ -147,13 +147,13 @@ int link_readXsectParams(Project* project, char* tok[], int ntoks)
 	double x[4];
 
 	// --- get index of link
-	if (ntoks < 6) return error_setInpError(ERR_ITEMS, "");
+	if (ntoks < 6) return error_setInpError(project,ERR_ITEMS, "");
 	j = project_findObject(project, LINK, tok[0]);
-	if (j < 0) return error_setInpError(ERR_NAME, tok[0]);
+	if (j < 0) return error_setInpError(project,ERR_NAME, tok[0]);
 
 	// --- get code of xsection shape
 	k = findmatch(tok[1], XsectTypeWords);
-	if (k < 0) return error_setInpError(ERR_KEYWORD, tok[1]);
+	if (k < 0) return error_setInpError(project,ERR_KEYWORD, tok[1]);
 
 	// --- assign default number of barrels to conduit
 	if (project->Link[j].type == CONDUIT) project->Conduit[project->Link[j].subIndex].barrels = 1;
@@ -165,7 +165,7 @@ int link_readXsectParams(Project* project, char* tok[], int ntoks)
 	if (k == IRREGULAR)
 	{
 		i = project_findObject(project, TRANSECT, tok[2]);
-		if (i < 0) return error_setInpError(ERR_NAME, tok[2]);
+		if (i < 0) return error_setInpError(project,ERR_NAME, tok[2]);
 		project->Link[j].xsect.type = k;
 		project->Link[j].xsect.transect = i;
 	}
@@ -175,9 +175,9 @@ int link_readXsectParams(Project* project, char* tok[], int ntoks)
 		if (k == CUSTOM)
 		{
 			if (!getDouble(tok[2], &x[0]) || x[0] <= 0.0)
-				return error_setInpError(ERR_NUMBER, tok[2]);
+				return error_setInpError(project,ERR_NUMBER, tok[2]);
 			i = project_findObject(project, CURVE, tok[3]);
-			if (i < 0) return error_setInpError(ERR_NAME, tok[3]);
+			if (i < 0) return error_setInpError(project,ERR_NAME, tok[3]);
 			project->Link[j].xsect.type = k;
 			project->Link[j].xsect.transect = i;
 			project->Link[j].xsect.yFull = x[0] / UCF(project, LENGTH);
@@ -187,18 +187,18 @@ int link_readXsectParams(Project* project, char* tok[], int ntoks)
 		else for (i = 2; i <= 5; i++)
 		{
 			if (!getDouble(tok[i], &x[i - 2]))
-				return error_setInpError(ERR_NUMBER, tok[i]);
+				return error_setInpError(project,ERR_NUMBER, tok[i]);
 		}
 		if (!xsect_setParams(project, &project->Link[j].xsect, k, x, UCF(project, LENGTH)))
 		{
-			return error_setInpError(ERR_NUMBER, "");
+			return error_setInpError(project,ERR_NUMBER, "");
 		}
 
 		// --- parse number of barrels if present
 		if (project->Link[j].type == CONDUIT && ntoks >= 7)
 		{
 			i = atoi(tok[6]);
-			if (i <= 0) return error_setInpError(ERR_NUMBER, tok[6]);
+			if (i <= 0) return error_setInpError(project,ERR_NUMBER, tok[6]);
 			else project->Conduit[project->Link[j].subIndex].barrels = (char)i;
 		}
 
@@ -206,7 +206,7 @@ int link_readXsectParams(Project* project, char* tok[], int ntoks)
 		if (project->Link[j].type == CONDUIT && ntoks >= 8)
 		{
 			i = atoi(tok[7]);
-			if (i < 0) return error_setInpError(ERR_NUMBER, tok[7]);
+			if (i < 0) return error_setInpError(project,ERR_NUMBER, tok[7]);
 			else project->Link[j].xsect.culvertCode = i;
 		}
 
@@ -231,24 +231,24 @@ int link_readLossParams(Project* project, char* tok[], int ntoks)
 	double x[3];
 	double seepRate = 0.0;
 
-	if (ntoks < 4) return error_setInpError(ERR_ITEMS, "");
+	if (ntoks < 4) return error_setInpError(project,ERR_ITEMS, "");
 	j = project_findObject(project, LINK, tok[0]);
-	if (j < 0) return error_setInpError(ERR_NAME, tok[0]);
+	if (j < 0) return error_setInpError(project,ERR_NAME, tok[0]);
 	for (i = 1; i <= 3; i++)
 	{
 		if (!getDouble(tok[i], &x[i - 1]) || x[i - 1] < 0.0)
-			return error_setInpError(ERR_NUMBER, tok[i]);
+			return error_setInpError(project,ERR_NUMBER, tok[i]);
 	}
 	k = 0;
 	if (ntoks >= 5)
 	{
 		k = findmatch(tok[4], NoYesWords);
-		if (k < 0) return error_setInpError(ERR_KEYWORD, tok[4]);
+		if (k < 0) return error_setInpError(project,ERR_KEYWORD, tok[4]);
 	}
 	if (ntoks >= 6)
 	{
 		if (!getDouble(tok[5], &seepRate))
-			return error_setInpError(ERR_NUMBER, tok[5]);
+			return error_setInpError(project,ERR_NUMBER, tok[5]);
 	}
 	project->Link[j].cLossInlet = x[0];
 	project->Link[j].cLossOutlet = x[1];
@@ -886,40 +886,40 @@ int  conduit_readParams(Project* project, int j, int k, char* tok[], int ntoks)
 	char*  id;
 
 	// --- check for valid ID and end node IDs
-	if (ntoks < 7) return error_setInpError(ERR_ITEMS, "");
+	if (ntoks < 7) return error_setInpError(project,ERR_ITEMS, "");
 	id = project_findID(project, LINK, tok[0]);                // link ID
-	if (id == NULL) return error_setInpError(ERR_NAME, tok[0]);
+	if (id == NULL) return error_setInpError(project,ERR_NAME, tok[0]);
 	n1 = project_findObject(project, NODE, tok[1]);            // upstrm. node
-	if (n1 < 0) return error_setInpError(ERR_NAME, tok[1]);
+	if (n1 < 0) return error_setInpError(project,ERR_NAME, tok[1]);
 	n2 = project_findObject(project, NODE, tok[2]);            // dwnstrm. node
-	if (n2 < 0) return error_setInpError(ERR_NAME, tok[2]);
+	if (n2 < 0) return error_setInpError(project,ERR_NAME, tok[2]);
 
 	// --- parse length & Mannings N
 	if (!getDouble(tok[3], &x[0]))
-		return error_setInpError(ERR_NUMBER, tok[3]);
+		return error_setInpError(project,ERR_NUMBER, tok[3]);
 	if (!getDouble(tok[4], &x[1]))
-		return error_setInpError(ERR_NUMBER, tok[4]);
+		return error_setInpError(project,ERR_NUMBER, tok[4]);
 
 	// --- parse offsets
 	if (project->LinkOffsets == ELEV_OFFSET && *tok[5] == '*') x[2] = MISSING;
 	else if (!getDouble(tok[5], &x[2]))
-		return error_setInpError(ERR_NUMBER, tok[5]);
+		return error_setInpError(project,ERR_NUMBER, tok[5]);
 	if (project->LinkOffsets == ELEV_OFFSET && *tok[6] == '*') x[3] = MISSING;
 	else if (!getDouble(tok[6], &x[3]))
-		return error_setInpError(ERR_NUMBER, tok[6]);
+		return error_setInpError(project,ERR_NUMBER, tok[6]);
 
 	// --- parse optional parameters
 	x[4] = 0.0;                                       // init. flow
 	if (ntoks >= 8)
 	{
 		if (!getDouble(tok[7], &x[4]))
-			return error_setInpError(ERR_NUMBER, tok[7]);
+			return error_setInpError(project,ERR_NUMBER, tok[7]);
 	}
 	x[5] = 0.0;
 	if (ntoks >= 9)
 	{
 		if (!getDouble(tok[8], &x[5]))
-			return error_setInpError(ERR_NUMBER, tok[8]);
+			return error_setInpError(project,ERR_NUMBER, tok[8]);
 	}
 
 	// --- add parameters to data base
@@ -1355,13 +1355,13 @@ int  pump_readParams(Project* project, int j, int k, char* tok[], int ntoks)
 	char*  id;
 
 	// --- check for valid ID and end node IDs
-	if (ntoks < 3) return error_setInpError(ERR_ITEMS, "");
+	if (ntoks < 3) return error_setInpError(project,ERR_ITEMS, "");
 	id = project_findID(project, LINK, tok[0]);
-	if (id == NULL) return error_setInpError(ERR_NAME, tok[0]);
+	if (id == NULL) return error_setInpError(project,ERR_NAME, tok[0]);
 	n1 = project_findObject(project, NODE, tok[1]);
-	if (n1 < 0) return error_setInpError(ERR_NAME, tok[1]);
+	if (n1 < 0) return error_setInpError(project,ERR_NAME, tok[1]);
 	n2 = project_findObject(project, NODE, tok[2]);
-	if (n2 < 0) return error_setInpError(ERR_NAME, tok[2]);
+	if (n2 < 0) return error_setInpError(project,ERR_NAME, tok[2]);
 
 	// --- parse curve name
 	x[0] = -1.;
@@ -1370,7 +1370,7 @@ int  pump_readParams(Project* project, int j, int k, char* tok[], int ntoks)
 		if (!strcomp(tok[3], "*"))
 		{
 			m = project_findObject(project,CURVE, tok[3]);
-			if (m < 0) return error_setInpError(ERR_NAME, tok[3]);
+			if (m < 0) return error_setInpError(project,ERR_NAME, tok[3]);
 			x[0] = m;
 		}
 	}
@@ -1380,7 +1380,7 @@ int  pump_readParams(Project* project, int j, int k, char* tok[], int ntoks)
 	if (ntoks >= 5)
 	{
 		m = findmatch(tok[4], OffOnWords);
-		if (m < 0) return error_setInpError(ERR_KEYWORD, tok[4]);
+		if (m < 0) return error_setInpError(project,ERR_KEYWORD, tok[4]);
 		x[1] = m;
 	}
 
@@ -1389,13 +1389,13 @@ int  pump_readParams(Project* project, int j, int k, char* tok[], int ntoks)
 	if (ntoks >= 6)
 	{
 		if (!getDouble(tok[5], &x[2]) || x[2] < 0.0)
-			return error_setInpError(ERR_NUMBER, tok[5]);
+			return error_setInpError(project,ERR_NUMBER, tok[5]);
 	}
 	x[3] = 0.0;
 	if (ntoks >= 7)
 	{
 		if (!getDouble(tok[6], &x[3]) || x[3] < 0.0)
-			return error_setInpError(ERR_NUMBER, tok[6]);
+			return error_setInpError(project,ERR_NUMBER, tok[6]);
 	}
 
 	// --- add parameters to pump object
@@ -1590,35 +1590,35 @@ int  orifice_readParams(Project* project, int j, int k, char* tok[], int ntoks)
 	char*  id;
 
 	// --- check for valid ID and end node IDs
-	if (ntoks < 6) return error_setInpError(ERR_ITEMS, "");
+	if (ntoks < 6) return error_setInpError(project,ERR_ITEMS, "");
 	id = project_findID(project, LINK, tok[0]);
-	if (id == NULL) return error_setInpError(ERR_NAME, tok[0]);
+	if (id == NULL) return error_setInpError(project,ERR_NAME, tok[0]);
 	n1 = project_findObject(project, NODE, tok[1]);
-	if (n1 < 0) return error_setInpError(ERR_NAME, tok[1]);
+	if (n1 < 0) return error_setInpError(project,ERR_NAME, tok[1]);
 	n2 = project_findObject(project, NODE, tok[2]);
-	if (n2 < 0) return error_setInpError(ERR_NAME, tok[2]);
+	if (n2 < 0) return error_setInpError(project,ERR_NAME, tok[2]);
 
 	// --- parse orifice parameters
 	m = findmatch(tok[3], OrificeTypeWords);
-	if (m < 0) return error_setInpError(ERR_KEYWORD, tok[3]);
+	if (m < 0) return error_setInpError(project,ERR_KEYWORD, tok[3]);
 	x[0] = m;                                              // type
 	if (project->LinkOffsets == ELEV_OFFSET && *tok[4] == '*') x[1] = MISSING;
 	else if (!getDouble(tok[4], &x[1]))                 // crest height
-		return error_setInpError(ERR_NUMBER, tok[4]);
+		return error_setInpError(project,ERR_NUMBER, tok[4]);
 	if (!getDouble(tok[5], &x[2]) || x[2] < 0.0)        // cDisch
-		return error_setInpError(ERR_NUMBER, tok[5]);
+		return error_setInpError(project,ERR_NUMBER, tok[5]);
 	x[3] = 0.0;
 	if (ntoks >= 7)
 	{
 		m = findmatch(tok[6], NoYesWords);
-		if (m < 0) return error_setInpError(ERR_KEYWORD, tok[6]);
+		if (m < 0) return error_setInpError(project,ERR_KEYWORD, tok[6]);
 		x[3] = m;                                          // flap gate
 	}
 	x[4] = 0.0;
 	if (ntoks >= 8)
 	{
 		if (!getDouble(tok[7], &x[4]) || x[4] < 0.0)    // orate
-			return error_setInpError(ERR_NUMBER, tok[7]);
+			return error_setInpError(project,ERR_NUMBER, tok[7]);
 	}
 
 	// --- add parameters to orifice object
@@ -1959,23 +1959,23 @@ int   weir_readParams(Project* project, int j, int k, char* tok[], int ntoks)
 	char*  id;
 
 	// --- check for valid ID and end node IDs
-	if (ntoks < 6) return error_setInpError(ERR_ITEMS, "");
+	if (ntoks < 6) return error_setInpError(project,ERR_ITEMS, "");
 	id = project_findID(project, LINK, tok[0]);
-	if (id == NULL) return error_setInpError(ERR_NAME, tok[0]);
+	if (id == NULL) return error_setInpError(project,ERR_NAME, tok[0]);
 	n1 = project_findObject(project, NODE, tok[1]);
-	if (n1 < 0) return error_setInpError(ERR_NAME, tok[1]);
+	if (n1 < 0) return error_setInpError(project,ERR_NAME, tok[1]);
 	n2 = project_findObject(project, NODE, tok[2]);
-	if (n2 < 0) return error_setInpError(ERR_NAME, tok[2]);
+	if (n2 < 0) return error_setInpError(project,ERR_NAME, tok[2]);
 
 	// --- parse weir parameters
 	m = findmatch(tok[3], WeirTypeWords);
-	if (m < 0) return error_setInpError(ERR_KEYWORD, tok[3]);
+	if (m < 0) return error_setInpError(project,ERR_KEYWORD, tok[3]);
 	x[0] = m;                                              // type
 	if (project->LinkOffsets == ELEV_OFFSET && *tok[4] == '*') x[1] = MISSING;
 	else if (!getDouble(tok[4], &x[1]))                 // height
-		return error_setInpError(ERR_NUMBER, tok[4]);
+		return error_setInpError(project,ERR_NUMBER, tok[4]);
 	if (!getDouble(tok[5], &x[2]) || x[2] < 0.0)        // cDisch1
-		return error_setInpError(ERR_NUMBER, tok[5]);
+		return error_setInpError(project,ERR_NUMBER, tok[5]);
 	x[3] = 0.0;
 	x[4] = 0.0;
 	x[5] = 0.0;
@@ -1985,25 +1985,25 @@ int   weir_readParams(Project* project, int j, int k, char* tok[], int ntoks)
 	if (ntoks >= 7 && *tok[6] != '*')                                        //(5.1.007)
 	{
 		m = findmatch(tok[6], NoYesWords);
-		if (m < 0) return error_setInpError(ERR_KEYWORD, tok[6]);
+		if (m < 0) return error_setInpError(project,ERR_KEYWORD, tok[6]);
 		x[3] = m;                                          // flap gate
 	}
 	if (ntoks >= 8 && *tok[7] != '*')                                        //(5.1.007)
 	{
 		if (!getDouble(tok[7], &x[4]) || x[4] < 0.0)     // endCon
-			return error_setInpError(ERR_NUMBER, tok[7]);
+			return error_setInpError(project,ERR_NUMBER, tok[7]);
 	}
 	if (ntoks >= 9 && *tok[8] != '*')                                        //(5.1.007)
 	{
 		if (!getDouble(tok[8], &x[5]) || x[5] < 0.0)     // cDisch2
-			return error_setInpError(ERR_NUMBER, tok[8]);
+			return error_setInpError(project,ERR_NUMBER, tok[8]);
 	}
 
 	////  Following segment added for release 5.1.007.  ////                       //(5.1.007)
 	if (ntoks >= 10 && *tok[9] != '*')
 	{
 		m = findmatch(tok[9], NoYesWords);
-		if (m < 0) return error_setInpError(ERR_KEYWORD, tok[9]);
+		if (m < 0) return error_setInpError(project,ERR_KEYWORD, tok[9]);
 		x[6] = m;                                           // canSurcharge
 	}
 	////
@@ -2014,7 +2014,7 @@ int   weir_readParams(Project* project, int j, int k, char* tok[], int ntoks)
 		if (ntoks >= 11)                                  // road width
 		{
 			if (!getDouble(tok[10], &x[7]) || x[7] < 0.0)
-				return error_setInpError(ERR_NUMBER, tok[10]);
+				return error_setInpError(project,ERR_NUMBER, tok[10]);
 		}
 		if (ntoks >= 12)                                  // road surface
 		{
@@ -2468,26 +2468,26 @@ int outlet_readParams(Project* project, int j, int k, char* tok[], int ntoks)
 	char*  s;
 
 	// --- check for valid ID and end node IDs
-	if (ntoks < 6) return error_setInpError(ERR_ITEMS, "");
+	if (ntoks < 6) return error_setInpError(project,ERR_ITEMS, "");
 	id = project_findID(project, LINK, tok[0]);
-	if (id == NULL) return error_setInpError(ERR_NAME, tok[0]);
+	if (id == NULL) return error_setInpError(project,ERR_NAME, tok[0]);
 	n1 = project_findObject(project, NODE, tok[1]);
-	if (n1 < 0) return error_setInpError(ERR_NAME, tok[1]);
+	if (n1 < 0) return error_setInpError(project,ERR_NAME, tok[1]);
 	n2 = project_findObject(project, NODE, tok[2]);
-	if (n2 < 0) return error_setInpError(ERR_NAME, tok[2]);
+	if (n2 < 0) return error_setInpError(project,ERR_NAME, tok[2]);
 
 	// --- get height above invert
 	if (project->LinkOffsets == ELEV_OFFSET && *tok[3] == '*') x[0] = MISSING;
 	else
 	{
 		if (!getDouble(tok[3], &x[0]))
-			return error_setInpError(ERR_NUMBER, tok[3]);
+			return error_setInpError(project,ERR_NUMBER, tok[3]);
 		if (project->LinkOffsets == DEPTH_OFFSET && x[0] < 0.0) x[0] = 0.0;
 	}
 
 	// --- see if outlet flow relation is tabular or functional
 	m = findmatch(tok[4], RelationWords);
-	if (m < 0) return error_setInpError(ERR_KEYWORD, tok[4]);
+	if (m < 0) return error_setInpError(project,ERR_KEYWORD, tok[4]);
 	x[1] = 0.0;
 	x[2] = 0.0;
 	x[3] = -1.0;
@@ -2502,11 +2502,11 @@ int outlet_readParams(Project* project, int j, int k, char* tok[], int ntoks)
 	// --- get params. for functional outlet device
 	if (m == FUNCTIONAL)
 	{
-		if (ntoks < 7) return error_setInpError(ERR_ITEMS, "");
+		if (ntoks < 7) return error_setInpError(project,ERR_ITEMS, "");
 		if (!getDouble(tok[5], &x[1]))
-			return error_setInpError(ERR_NUMBER, tok[5]);
+			return error_setInpError(project,ERR_NUMBER, tok[5]);
 		if (!getDouble(tok[6], &x[2]))
-			return error_setInpError(ERR_NUMBER, tok[6]);
+			return error_setInpError(project,ERR_NUMBER, tok[6]);
 		n = 7;
 	}
 
@@ -2514,7 +2514,7 @@ int outlet_readParams(Project* project, int j, int k, char* tok[], int ntoks)
 	else
 	{
 		i = project_findObject(project, CURVE, tok[5]);
-		if (i < 0) return error_setInpError(ERR_NAME, tok[5]);
+		if (i < 0) return error_setInpError(project,ERR_NAME, tok[5]);
 		x[3] = i;
 		n = 6;
 	}
@@ -2523,7 +2523,7 @@ int outlet_readParams(Project* project, int j, int k, char* tok[], int ntoks)
 	if (ntoks > n)
 	{
 		i = findmatch(tok[n], NoYesWords);
-		if (i < 0) return error_setInpError(ERR_KEYWORD, tok[n]);
+		if (i < 0) return error_setInpError(project,ERR_KEYWORD, tok[n]);
 		x[4] = i;
 	}
 

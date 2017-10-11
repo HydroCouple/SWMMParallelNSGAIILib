@@ -41,7 +41,7 @@
 //-----------------------------------------------------------------------------
 // Shared variables
 //-----------------------------------------------------------------------------
-static int* SortedLinks;
+//static int* project->SortedLinks;
 
 //-----------------------------------------------------------------------------
 //  External functions (declared in funcs.h)
@@ -79,16 +79,16 @@ int routing_open(Project* project)
   if ( !treatmnt_open(project) ) return project->ErrorCode;
 
   // --- topologically sort the links
-  SortedLinks = NULL;
+  project->SortedLinks = NULL;
   if ( project->Nobjects[LINK] > 0 )
   {
-    SortedLinks = (int *) calloc(project->Nobjects[LINK], sizeof(int));
-    if ( !SortedLinks )
+    project->SortedLinks = (int *) calloc(project->Nobjects[LINK], sizeof(int));
+    if ( !project->SortedLinks )
     {
       report_writeErrorMsg(project,ERR_MEMORY, "");
       return project->ErrorCode;
     }
-    toposort_sortLinks(project, SortedLinks);
+    toposort_sortLinks(project, project->SortedLinks);
     if ( project->ErrorCode ) return project->ErrorCode;
   }
 
@@ -117,7 +117,7 @@ void routing_close(Project* project, int routingModel)
   // --- free allocated memory
   flowrout_close(project,routingModel);
   treatmnt_close(project);
-  FREE(SortedLinks);
+  FREE(project->SortedLinks);
 }
 
 //=============================================================================
@@ -248,7 +248,7 @@ void routing_execute(Project* project, int routingModel, double routingStep)
     // --- route flow through the drainage network
     if ( project->Nobjects[LINK] > 0 )
     {
-      stepCount = flowrout_execute(project, SortedLinks, routingModel, routingStep);
+      stepCount = flowrout_execute(project, project->SortedLinks, routingModel, routingStep);
     }
   }
 

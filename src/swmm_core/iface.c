@@ -75,11 +75,11 @@ int iface_readFileParams(Project* project, char* tok[], int ntoks)
     int   j;
 
     // --- determine file disposition and type
-    if ( ntoks < 2 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 2 ) return error_setInpError(project,ERR_ITEMS, "");
     k = (char)findmatch(tok[0], FileModeWords);
-    if ( k < 0 ) return error_setInpError(ERR_KEYWORD, tok[0]);
+    if ( k < 0 ) return error_setInpError(project,ERR_KEYWORD, tok[0]);
     j = findmatch(tok[1], FileTypeWords);
-    if ( j < 0 ) return error_setInpError(ERR_KEYWORD, tok[1]);
+    if ( j < 0 ) return error_setInpError(project,ERR_KEYWORD, tok[1]);
     if ( ntoks < 3 ) return 0;
 
     // --- process file name
@@ -114,13 +114,13 @@ int iface_readFileParams(Project* project, char* tok[], int ntoks)
         break;
 
       case INFLOWS_FILE:
-        if ( k != USE_FILE ) return error_setInpError(ERR_ITEMS, "");
+        if ( k != USE_FILE ) return error_setInpError(project,ERR_ITEMS, "");
         project->Finflows.mode = k;
         sstrncpy(project->Finflows.name, tok[2], MAXFNAME);
         break;
 
       case OUTFLOWS_FILE:
-        if ( k != SAVE_FILE ) return error_setInpError(ERR_ITEMS, "");
+        if ( k != SAVE_FILE ) return error_setInpError(project,ERR_ITEMS, "");
         project->Foutflows.mode = k;
         sstrncpy(project->Foutflows.name, tok[2], MAXFNAME);
         break;

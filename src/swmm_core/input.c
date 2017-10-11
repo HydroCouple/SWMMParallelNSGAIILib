@@ -76,7 +76,7 @@ int input_countObjects(Project* project)
 
 	// --- initialize number of objects & set default values
 	if (project->ErrorCode) return project->ErrorCode;
-	error_setInpError(0, "");
+	error_setInpError(project,0, "");
 	for (i = 0; i < MAX_OBJ_TYPES; i++) project->Nobjects[i] = 0;
 	for (i = 0; i < MAX_NODE_TYPES; i++) project->Nnodes[i] = 0;
 	for (i = 0; i < MAX_LINK_TYPES; i++) project->Nlinks[i] = 0;
@@ -149,7 +149,7 @@ int input_readData(Project* project)
 	//     (final counts in Mobjects, Mnodes & Mlinks should
 	//      match those in Nobjects, Nnodes and Nlinks).
 	if (project->ErrorCode) return project->ErrorCode;
-	error_setInpError(0, "");
+	error_setInpError(project,0, "");
 	for (i = 0; i < MAX_OBJ_TYPES; i++)  project->Mobjects[i] = 0;
 	for (i = 0; i < MAX_NODE_TYPES; i++) project->Mnodes[i] = 0;
 	for (i = 0; i < MAX_LINK_TYPES; i++) project->Mlinks[i] = 0;
@@ -208,7 +208,7 @@ int input_readData(Project* project)
 			}
 			else
 			{
-				inperr = error_setInpError(ERR_KEYWORD, project->Tok[0]);
+				inperr = error_setInpError(project,ERR_KEYWORD, project->Tok[0]);
 				report_writeInputErrorMsg(project,inperr, sect, line, lineCount);
 				errsum++;
 				break;
@@ -251,19 +251,19 @@ int  addObject(Project* project, int objType, char* id)
 	{
 	case s_RAINGAGE:
 		if (!project_addObject(project, GAGE, id, project->Nobjects[GAGE]))
-			errcode = error_setInpError(ERR_DUP_NAME, id);
+			errcode = error_setInpError(project,ERR_DUP_NAME, id);
 		project->Nobjects[GAGE]++;
 		break;
 
 	case s_SUBCATCH:
 		if (!project_addObject(project, SUBCATCH, id, project->Nobjects[SUBCATCH]))
-			errcode = error_setInpError(ERR_DUP_NAME, id);
+			errcode = error_setInpError(project,ERR_DUP_NAME, id);
 		project->Nobjects[SUBCATCH]++;
 		break;
 
 	case s_AQUIFER:
 		if (!project_addObject(project, AQUIFER, id, project->Nobjects[AQUIFER]))
-			errcode = error_setInpError(ERR_DUP_NAME, id);
+			errcode = error_setInpError(project,ERR_DUP_NAME, id);
 		project->Nobjects[AQUIFER]++;
 		break;
 
@@ -272,7 +272,7 @@ int  addObject(Project* project, int objType, char* id)
 		if (project_findObject(project, UNITHYD, id) < 0)
 		{
 			if (!project_addObject(project, UNITHYD, id, project->Nobjects[UNITHYD]))
-				errcode = error_setInpError(ERR_DUP_NAME, id);
+				errcode = error_setInpError(project,ERR_DUP_NAME, id);
 			project->Nobjects[UNITHYD]++;
 		}
 		break;
@@ -282,83 +282,83 @@ int  addObject(Project* project, int objType, char* id)
 		if (project_findObject(project, SNOWMELT, id) < 0)
 		{
 			if (!project_addObject(project, SNOWMELT, id, project->Nobjects[SNOWMELT]))
-				errcode = error_setInpError(ERR_DUP_NAME, id);
+				errcode = error_setInpError(project,ERR_DUP_NAME, id);
 			project->Nobjects[SNOWMELT]++;
 		}
 		break;
 
 	case s_JUNCTION:
 		if (!project_addObject(project, NODE, id, project->Nobjects[NODE]))
-			errcode = error_setInpError(ERR_DUP_NAME, id);
+			errcode = error_setInpError(project,ERR_DUP_NAME, id);
 		project->Nobjects[NODE]++;
 		project->Nnodes[JUNCTION]++;
 		break;
 
 	case s_OUTFALL:
 		if (!project_addObject(project, NODE, id, project->Nobjects[NODE]))
-			errcode = error_setInpError(ERR_DUP_NAME, id);
+			errcode = error_setInpError(project,ERR_DUP_NAME, id);
 		project->Nobjects[NODE]++;
 		project->Nnodes[OUTFALL]++;
 		break;
 
 	case s_STORAGE:
 		if (!project_addObject(project, NODE, id, project->Nobjects[NODE]))
-			errcode = error_setInpError(ERR_DUP_NAME, id);
+			errcode = error_setInpError(project,ERR_DUP_NAME, id);
 		project->Nobjects[NODE]++;
 		project->Nnodes[STORAGE]++;
 		break;
 
 	case s_DIVIDER:
 		if (!project_addObject(project, NODE, id, project->Nobjects[NODE]))
-			errcode = error_setInpError(ERR_DUP_NAME, id);
+			errcode = error_setInpError(project,ERR_DUP_NAME, id);
 		project->Nobjects[NODE]++;
 		project->Nnodes[DIVIDER]++;
 		break;
 
 	case s_CONDUIT:
 		if (!project_addObject(project, LINK, id, project->Nobjects[LINK]))
-			errcode = error_setInpError(ERR_DUP_NAME, id);
+			errcode = error_setInpError(project,ERR_DUP_NAME, id);
 		project->Nobjects[LINK]++;
 		project->Nlinks[CONDUIT]++;
 		break;
 
 	case s_PUMP:
 		if (!project_addObject(project, LINK, id, project->Nobjects[LINK]))
-			errcode = error_setInpError(ERR_DUP_NAME, id);
+			errcode = error_setInpError(project,ERR_DUP_NAME, id);
 		project->Nobjects[LINK]++;
 		project->Nlinks[PUMP]++;
 		break;
 
 	case s_ORIFICE:
 		if (!project_addObject(project, LINK, id, project->Nobjects[LINK]))
-			errcode = error_setInpError(ERR_DUP_NAME, id);
+			errcode = error_setInpError(project,ERR_DUP_NAME, id);
 		project->Nobjects[LINK]++;
 		project->Nlinks[ORIFICE]++;
 		break;
 
 	case s_WEIR:
 		if (!project_addObject(project, LINK, id, project->Nobjects[LINK]))
-			errcode = error_setInpError(ERR_DUP_NAME, id);
+			errcode = error_setInpError(project,ERR_DUP_NAME, id);
 		project->Nobjects[LINK]++;
 		project->Nlinks[WEIR]++;
 		break;
 
 	case s_OUTLET:
 		if (!project_addObject(project, LINK, id, project->Nobjects[LINK]))
-			errcode = error_setInpError(ERR_DUP_NAME, id);
+			errcode = error_setInpError(project,ERR_DUP_NAME, id);
 		project->Nobjects[LINK]++;
 		project->Nlinks[OUTLET]++;
 		break;
 
 	case s_POLLUTANT:
 		if (!project_addObject(project, POLLUT, id, project->Nobjects[POLLUT]))
-			errcode = error_setInpError(ERR_DUP_NAME, id);
+			errcode = error_setInpError(project,ERR_DUP_NAME, id);
 		project->Nobjects[POLLUT]++;
 		break;
 
 	case s_LANDUSE:
 		if (!project_addObject(project, LANDUSE, id, project->Nobjects[LANDUSE]))
-			errcode = error_setInpError(ERR_DUP_NAME, id);
+			errcode = error_setInpError(project,ERR_DUP_NAME, id);
 		project->Nobjects[LANDUSE]++;
 		break;
 
@@ -367,7 +367,7 @@ int  addObject(Project* project, int objType, char* id)
 		if (project_findObject(project, TIMEPATTERN, id) < 0)
 		{
 			if (!project_addObject(project, TIMEPATTERN, id, project->Nobjects[TIMEPATTERN]))
-				errcode = error_setInpError(ERR_DUP_NAME, id);
+				errcode = error_setInpError(project,ERR_DUP_NAME, id);
 			project->Nobjects[TIMEPATTERN]++;
 		}
 		break;
@@ -377,7 +377,7 @@ int  addObject(Project* project, int objType, char* id)
 		if (project_findObject(project, CURVE, id) < 0)
 		{
 			if (!project_addObject(project, CURVE, id, project->Nobjects[CURVE]))
-				errcode = error_setInpError(ERR_DUP_NAME, id);
+				errcode = error_setInpError(project,ERR_DUP_NAME, id);
 			project->Nobjects[CURVE]++;
 
 			// --- check for a conduit shape curve
@@ -392,7 +392,7 @@ int  addObject(Project* project, int objType, char* id)
 		if (project_findObject(project, TSERIES, id) < 0)
 		{
 			if (!project_addObject(project, TSERIES, id, project->Nobjects[TSERIES]))
-				errcode = error_setInpError(ERR_DUP_NAME, id);
+				errcode = error_setInpError(project,ERR_DUP_NAME, id);
 			project->Nobjects[TSERIES]++;
 		}
 		break;
@@ -409,7 +409,7 @@ int  addObject(Project* project, int objType, char* id)
 			if (id)
 			{
 				if (!project_addObject(project, TRANSECT, id, project->Nobjects[TRANSECT]))
-					errcode = error_setInpError(ERR_DUP_NAME, id);
+					errcode = error_setInpError(project,ERR_DUP_NAME, id);
 				project->Nobjects[TRANSECT]++;
 			}
 		}
@@ -421,7 +421,7 @@ int  addObject(Project* project, int objType, char* id)
 		{
 			if (!project_addObject(project, LID, id, project->Nobjects[LID]))
 			{
-				errcode = error_setInpError(ERR_DUP_NAME, id);
+				errcode = error_setInpError(project,ERR_DUP_NAME, id);
 			}
 			project->Nobjects[LID]++;
 		}
@@ -605,25 +605,25 @@ int readControl(Project* project, char* tok[], int ntoks)
 	int keyword;
 
 	// --- check for minimum number of tokens
-	if (ntoks < 2) return error_setInpError(ERR_ITEMS, "");
+	if (ntoks < 2) return error_setInpError(project,ERR_ITEMS, "");
 
 	// --- get index of control rule keyword
 	keyword = findmatch(tok[0], RuleKeyWords);
-	if (keyword < 0) return error_setInpError(ERR_KEYWORD, tok[0]);
+	if (keyword < 0) return error_setInpError(project,ERR_KEYWORD, tok[0]);
 
 	// --- if line begins a new control rule, add rule ID to the database
 	if (keyword == 0)
 	{
 		if (!project_addObject(project, CONTROL, tok[1], project->Mobjects[CONTROL]))
 		{
-			return error_setInpError(ERR_DUP_NAME, project->Tok[1]);
+			return error_setInpError(project,ERR_DUP_NAME, project->Tok[1]);
 		}
 		project->Mobjects[CONTROL]++;
 	}
 
 	// --- get index of last control rule processed
 	index = project->Mobjects[CONTROL] - 1;
-	if (index < 0) return error_setInpError(ERR_RULE, "");
+	if (index < 0) return error_setInpError(project,ERR_RULE, "");
 
 	// --- add current line as a new clause to the control rule
 	return controls_addRuleClause(project, index, keyword, project->Tok, project->Ntokens);

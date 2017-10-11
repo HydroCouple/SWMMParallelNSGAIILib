@@ -47,17 +47,17 @@ int exfil_readStorageParams(Project* project, int k, char* tok[], int ntoks, int
     if ( ntoks == n+1 )
     {
         if ( ! getDouble(tok[n], &x[1]) )
-            return error_setInpError(ERR_NUMBER, tok[n]);
+            return error_setInpError(project,ERR_NUMBER, tok[n]);
         x[0] = 0.0;
         x[2] = 0.0;
     }
 
     // --- otherwise read Green-Ampt infiltration parameters from input tokens
-    else if ( ntoks < n + 3 ) return error_setInpError(ERR_ITEMS, "");
+    else if ( ntoks < n + 3 ) return error_setInpError(project,ERR_ITEMS, "");
     else for (i = 0; i < 3; i++)
     {
         if ( ! getDouble(tok[n+i], &x[i]) )
-            return error_setInpError(ERR_NUMBER, tok[n+i]);
+            return error_setInpError(project,ERR_NUMBER, tok[n+i]);
     }
 
     // --- no exfiltration if Ksat is 0
@@ -207,21 +207,21 @@ int  createStorageExfil(Project* project, int k, double x[])
     if ( exfil == NULL )
     {
         exfil = (TExfil *) malloc(sizeof(TExfil));
-        if ( exfil == NULL ) return error_setInpError(ERR_MEMORY, "");
+        if ( exfil == NULL ) return error_setInpError(project,ERR_MEMORY, "");
         project->Storage[k].exfil = exfil;
 
         // --- create Green-Ampt infiltration objects for the bottom & banks
         exfil->btmExfil = NULL;
         exfil->bankExfil = NULL;
         exfil->btmExfil = (TGrnAmpt *) malloc(sizeof(TGrnAmpt));
-        if ( exfil->btmExfil == NULL ) return error_setInpError(ERR_MEMORY, "");
+        if ( exfil->btmExfil == NULL ) return error_setInpError(project,ERR_MEMORY, "");
         exfil->bankExfil = (TGrnAmpt *) malloc(sizeof(TGrnAmpt));
-        if ( exfil->bankExfil == NULL ) return error_setInpError(ERR_MEMORY, "");
+        if ( exfil->bankExfil == NULL ) return error_setInpError(project,ERR_MEMORY, "");
     }
 
     // --- initialize the Green-Ampt parameters
     if ( !grnampt_setParams(project,exfil->btmExfil, x) )
-        return error_setInpError(ERR_NUMBER, "");
+        return error_setInpError(project,ERR_NUMBER, "");
     grnampt_setParams(project,exfil->bankExfil, x);
     return 0;
 }

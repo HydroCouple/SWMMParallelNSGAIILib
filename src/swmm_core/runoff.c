@@ -83,7 +83,7 @@ int runoff_open(Project* project)
     project->Nsteps = 0;
 
     // --- open the Ordinary Differential Equation solver
-    if ( !odesolve_open(MAXODES) ) report_writeErrorMsg(project,ERR_ODE_SOLVER, "");
+    if ( !odesolve_open(project,MAXODES) ) report_writeErrorMsg(project,ERR_ODE_SOLVER, "");
 
     // --- allocate memory for pollutant runoff loads                          //(5.1.008)
     project->OutflowLoad = NULL;
@@ -122,7 +122,7 @@ void runoff_close(Project* project)
 //
 {
     // --- close the ODE solver
-    odesolve_close();
+    odesolve_close(project);
 
     // --- free memory for pollutant runoff loads                              //(5.1.008)
     FREE(project->OutflowLoad);

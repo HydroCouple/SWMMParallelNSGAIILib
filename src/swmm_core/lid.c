@@ -323,11 +323,11 @@ int lid_readProcParams(Project* project, char* toks[], int ntoks)
     int j, m;
 
     // --- check for minimum number of tokens
-    if ( ntoks < 2 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 2 ) return error_setInpError(project,ERR_ITEMS, "");
 
     // --- check that LID exists in database
 	j = project_findObject(project, LID, toks[0]);
-    if ( j < 0 ) return error_setInpError(ERR_NAME, toks[0]);
+    if ( j < 0 ) return error_setInpError(project,ERR_NAME, toks[0]);
 
     // --- assign ID if not done yet
     if ( project->LidProcs[j].ID == NULL )
@@ -354,7 +354,7 @@ int lid_readProcParams(Project* project, char* toks[], int ntoks)
     case DRAIN: return readDrainData(project,j, toks, ntoks);
     case DRAINMAT: return readDrainMatData(project,j, toks, ntoks);
     }
-    return error_setInpError(ERR_KEYWORD, toks[1]);
+    return error_setInpError(project,ERR_KEYWORD, toks[1]);
 }
 
 //=============================================================================
@@ -388,31 +388,31 @@ int lid_readGroupParams(Project* project, char* toks[], int ntoks)
     int        drainSubcatch = -1, drainNode = -1;                             //(5.1.008)
 
     //... check for valid number of input tokens
-    if ( ntoks < 8 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 8 ) return error_setInpError(project,ERR_ITEMS, "");
 
     //... find subcatchment
 	j = project_findObject(project, SUBCATCH, toks[0]);
-    if ( j < 0 ) return error_setInpError(ERR_NAME, toks[0]);
+    if ( j < 0 ) return error_setInpError(project,ERR_NAME, toks[0]);
 
     //... find LID process in list of LID processes
 	k = project_findObject(project, LID, toks[1]);
-    if ( k < 0 ) return error_setInpError(ERR_NAME, toks[1]);
+    if ( k < 0 ) return error_setInpError(project,ERR_NAME, toks[1]);
 
     //... get number of replicates
     n = atoi(toks[2]);
-    if ( n < 0 ) return error_setInpError(ERR_NUMBER, toks[2]);
+    if ( n < 0 ) return error_setInpError(project,ERR_NUMBER, toks[2]);
     if ( n == 0 ) return 0;
 
     //... convert next 4 tokens to doubles
     for (i = 3; i <= 7; i++)
     {
         if ( ! getDouble(toks[i], &x[i-3]) || x[i-3] < 0.0 )
-            return error_setInpError(ERR_NUMBER, toks[i]);
+            return error_setInpError(project,ERR_NUMBER, toks[i]);
     }
 
     //... check for valid percentages on tokens 5 & 6 (x[2] & x[3])
     for (i = 2; i <= 3; i++) if ( x[i] > 100.0 )
-        return error_setInpError(ERR_NUMBER, toks[i+3]);
+        return error_setInpError(project,ERR_NUMBER, toks[i+3]);
 
     //... read optional report file name
     if ( ntoks >= 9 && strcmp(toks[8], "*") != 0 ) fname = toks[8];
@@ -426,7 +426,7 @@ int lid_readGroupParams(Project* project, char* toks[], int ntoks)
         if ( drainSubcatch < 0 )
         {
 			drainNode = project_findObject(project, NODE, toks[9]);
-            if ( drainNode < 0 ) return error_setInpError(ERR_NAME, toks[9]);
+	    if ( drainNode < 0 ) return error_setInpError(project,ERR_NAME, toks[9]);
         }
     }
 ////
@@ -461,14 +461,14 @@ int addLidUnit(Project* project, int j, int k, int n, double x[], char* fname,
     if ( !lidGroup )
     {
         lidGroup = (struct LidGroup *) malloc(sizeof(struct LidGroup));
-        if ( !lidGroup ) return error_setInpError(ERR_MEMORY, "");
+        if ( !lidGroup ) return error_setInpError(project,ERR_MEMORY, "");
         lidGroup->lidList = NULL;
         project->LidGroups[j] = lidGroup;
     }
 
     //... create a new LID unit to add to the group
     lidUnit = (TLidUnit *) malloc(sizeof(TLidUnit));
-    if ( !lidUnit ) return error_setInpError(ERR_MEMORY, "");
+    if ( !lidUnit ) return error_setInpError(project,ERR_MEMORY, "");
     lidUnit->rptFile = NULL;
 
     //... add the LID unit to the group
@@ -476,7 +476,7 @@ int addLidUnit(Project* project, int j, int k, int n, double x[], char* fname,
     if ( !lidList )
     {
         free(lidUnit);
-        return error_setInpError(ERR_MEMORY, "");
+        return error_setInpError(project,ERR_MEMORY, "");
     }
     lidList->lidUnit = lidUnit;
     lidList->nextLidUnit = lidGroup->lidList;
@@ -497,7 +497,7 @@ int addLidUnit(Project* project, int j, int k, int n, double x[], char* fname,
     if ( fname != NULL )
     {
         if ( !createLidRptFile(lidUnit, fname) ) 
-            return error_setInpError(ERR_RPT_FILE, fname);
+            return error_setInpError(project,ERR_RPT_FILE, fname);
     }
     return 0;
 }
@@ -534,13 +534,13 @@ int readSurfaceData(Project* project, int j, char* toks[], int ntoks)
     int    i;
     double x[5];
 
-    if ( ntoks < 7 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 7 ) return error_setInpError(project,ERR_ITEMS, "");
     for (i = 2; i < 7; i++)
     {
         if ( ! getDouble(toks[i], &x[i-2]) || x[i-2] < 0.0 )
-            return error_setInpError(ERR_NUMBER, toks[i]);
+            return error_setInpError(project,ERR_NUMBER, toks[i]);
     }
-    if ( x[1] >= 1.0 ) return error_setInpError(ERR_NUMBER, toks[3]);           
+    if ( x[1] >= 1.0 ) return error_setInpError(project,ERR_NUMBER, toks[3]);
     if ( x[0] == 0.0 ) x[1] = 0.0;
 
     project->LidProcs[j].surface.thickness     = x[0] / UCF(project,RAINDEPTH);
@@ -569,11 +569,11 @@ int readPavementData(Project* project, int j, char* toks[], int ntoks)
     int    i;
     double x[5];
 
-    if ( ntoks < 7 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 7 ) return error_setInpError(project,ERR_ITEMS, "");
     for (i = 2; i < 7; i++)
     {
         if ( ! getDouble(toks[i], &x[i-2]) || x[i-2] < 0.0 )
-            return error_setInpError(ERR_NUMBER, toks[i]);
+            return error_setInpError(project,ERR_NUMBER, toks[i]);
     }
 
     //... convert void ratio to void fraction
@@ -605,11 +605,11 @@ int readSoilData(Project* project, int j, char* toks[], int ntoks)
     int    i;
     double x[7];
 
-    if ( ntoks < 9 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 9 ) return error_setInpError(project,ERR_ITEMS, "");
     for (i = 2; i < 9; i++)
     {
         if ( ! getDouble(toks[i], &x[i-2]) || x[i-2] < 0.0 )
-            return error_setInpError(ERR_NUMBER, toks[i]);
+            return error_setInpError(project,ERR_NUMBER, toks[i]);
     }
     project->LidProcs[j].soil.thickness = x[0] / UCF(project,RAINDEPTH);
     project->LidProcs[j].soil.porosity  = x[1];
@@ -640,11 +640,11 @@ int readStorageData(Project* project, int j, char* toks[], int ntoks)
     double x[6];
 
     //... read numerical parameters
-    if ( ntoks < 6 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 6 ) return error_setInpError(project,ERR_ITEMS, "");
     for (i = 2; i < 6; i++)
     {
         if ( ! getDouble(toks[i], &x[i-2])  || x[i-2] < 0.0 )
-            return error_setInpError(ERR_NUMBER, toks[i]);
+            return error_setInpError(project,ERR_NUMBER, toks[i]);
     }
 
     //... convert void ratio to void fraction
@@ -677,11 +677,11 @@ int readDrainData(Project* project, int j, char* toks[], int ntoks)
     double x[4];
 
     //... read numerical parameters
-    if ( ntoks < 6 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 6 ) return error_setInpError(project,ERR_ITEMS, "");
     for (i = 2; i < 6; i++)
     {
         if ( ! getDouble(toks[i], &x[i-2])  || x[i-2] < 0.0 )
-            return error_setInpError(ERR_NUMBER, toks[i]);
+            return error_setInpError(project,ERR_NUMBER, toks[i]);
     }
 
     //... save parameters to LID drain layer structure
@@ -711,12 +711,12 @@ int readDrainMatData(Project* project, int j, char* toks[], int ntoks)
     double x[3];
 
     //... read numerical parameters
-    if ( ntoks < 5 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 5 ) return error_setInpError(project,ERR_ITEMS, "");
 	if ( project->LidProcs[j].lidType != GREEN_ROOF ) return 0;
     for (i = 2; i < 5; i++)
     {
         if ( ! getDouble(toks[i], &x[i-2]) || x[i-2] < 0.0 )
-            return error_setInpError(ERR_NUMBER, toks[i]);
+            return error_setInpError(project,ERR_NUMBER, toks[i]);
     }
 
     //... save parameters to LID drain layer structure

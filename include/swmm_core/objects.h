@@ -50,7 +50,6 @@
 #include "exfil.h"                                                             //(5.1.007)
 #include "lid.h"
 #include "datetime.h"
-
 /*
 **  alloc_hdr_t - Header for each block of memory.
 */

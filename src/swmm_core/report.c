@@ -82,37 +82,37 @@ int report_readOptions(Project* project, char* tok[], int ntoks)
 {
     char  k;
     int   j, m, t;
-    if ( ntoks < 2 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 2 ) return error_setInpError(project,ERR_ITEMS, "");
     k = (char)findmatch(tok[0], ReportWords);
-    if ( k < 0 ) return error_setInpError(ERR_KEYWORD, tok[0]);
+    if ( k < 0 ) return error_setInpError(project,ERR_KEYWORD, tok[0]);
     switch ( k )
     {
       case 0: // Input
         m = findmatch(tok[1], NoYesWords);
         if      ( m == YES ) project->RptFlags.input = TRUE;
         else if ( m == NO )  project->RptFlags.input = FALSE;
-        else                 return error_setInpError(ERR_KEYWORD, tok[1]);
+        else                 return error_setInpError(project,ERR_KEYWORD, tok[1]);
         return 0;
 
       case 1: // Continuity
         m = findmatch(tok[1], NoYesWords);
         if      ( m == YES ) project->RptFlags.continuity = TRUE;
         else if ( m == NO )  project->RptFlags.continuity = FALSE;
-        else                 return error_setInpError(ERR_KEYWORD, tok[1]);
+        else                 return error_setInpError(project,ERR_KEYWORD, tok[1]);
         return 0;
 
       case 2: // Flow Statistics
         m = findmatch(tok[1], NoYesWords);
         if      ( m == YES ) project->RptFlags.flowStats = TRUE;
         else if ( m == NO )  project->RptFlags.flowStats = FALSE;
-        else                 return error_setInpError(ERR_KEYWORD, tok[1]);
+        else                 return error_setInpError(project,ERR_KEYWORD, tok[1]);
         return 0;
 
       case 3: // Controls
         m = findmatch(tok[1], NoYesWords);
         if      ( m == YES ) project->RptFlags.controls = TRUE;
         else if ( m == NO )  project->RptFlags.controls = FALSE;
-        else                 return error_setInpError(ERR_KEYWORD, tok[1]);
+        else                 return error_setInpError(project,ERR_KEYWORD, tok[1]);
         return 0;
 
       case 4:  m = SUBCATCH;  break;  // Subcatchments
@@ -123,10 +123,10 @@ int report_readOptions(Project* project, char* tok[], int ntoks)
         m = findmatch(tok[1], NoYesWords);
         if      ( m == YES ) project->RptFlags.nodeStats = TRUE;
         else if ( m == NO )  project->RptFlags.nodeStats = FALSE;
-        else                 return error_setInpError(ERR_KEYWORD, tok[1]);
+        else                 return error_setInpError(project,ERR_KEYWORD, tok[1]);
         return 0;
 
-      default: return error_setInpError(ERR_KEYWORD, tok[1]);
+      default: return error_setInpError(project,ERR_KEYWORD, tok[1]);
     }
     k = (char)findmatch(tok[1], NoneAllWords);
     if ( k < 0 )
@@ -135,7 +135,7 @@ int report_readOptions(Project* project, char* tok[], int ntoks)
         for (t = 1; t < ntoks; t++)
         {
             j = project_findObject(project, m, tok[t]);
-            if ( j < 0 ) return error_setInpError(ERR_NAME, tok[t]);
+            if ( j < 0 ) return error_setInpError(project,ERR_NAME, tok[t]);
             switch ( m )
             {
               case SUBCATCH:  project->Subcatch[j].rptFlag = TRUE;  break;

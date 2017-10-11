@@ -21,6 +21,7 @@
 
 #include <string.h>
 #include "error.h"
+#include "globals.h"
 
 #define ERR101 "\n  ERROR 101: memory allocation error."
 #define ERR103 "\n  ERROR 103: cannot solve KW equations for Link %s."
@@ -201,7 +202,7 @@ int ErrorCodes[] =
       339,    341,    343,    345,    351,    353,    355,    357,    361,
       363,    401,    402,    403,    405};
 
-char  ErrString[256];
+
 
 char* error_getMsg(int i)
 {
@@ -215,8 +216,8 @@ int  error_getCode(int i)
     else return 0;
 }
 
-int  error_setInpError(int errcode, char* s)
+int  error_setInpError(Project *project, int errcode, char* s)
 {
-    strcpy(ErrString, s);
+    strcpy(project->ErrString, s);
     return errcode;
 }

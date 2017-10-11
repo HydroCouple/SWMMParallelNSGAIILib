@@ -77,29 +77,29 @@ int snow_readMeltParams(Project* project, char* tok[], int ntoks)
 {
     int i, j, k, m, n;
     double x[7];
-    if ( ntoks < 8 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 8 ) return error_setInpError(project,ERR_ITEMS, "");
 
     // --- save snow melt parameter set name if not already done so
 	j = project_findObject(project, SNOWMELT, tok[0]);
-    if ( j < 0 ) return error_setInpError(ERR_NAME, tok[0]);
+    if ( j < 0 ) return error_setInpError(project,ERR_NAME, tok[0]);
     if ( project->Snowmelt[j].ID == NULL )
 		project->Snowmelt[j].ID = project_findID(project, SNOWMELT, tok[0]);
 
     // --- identify data keyword
     k = findmatch(tok[1], SnowmeltWords);
-    if ( k < 0 ) return error_setInpError(ERR_KEYWORD, tok[1]);
+    if ( k < 0 ) return error_setInpError(project,ERR_KEYWORD, tok[1]);
 
     // --- number of parameters to read
     n = 7;                             // 7 for subareas
     if ( k == SNOW_REMOVAL ) n = 6;    // 6 for Removal
-    if ( ntoks < n + 2 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < n + 2 ) return error_setInpError(project,ERR_ITEMS, "");
     for (i=0; i<7; i++) x[i] = 0.0;
 
     // --- parse each parameter
     for (i=0; i<n; i++)
     {
         if ( ! getDouble(tok[i+2], &x[i]) )
-            return error_setInpError(ERR_NUMBER, tok[i+2]);
+            return error_setInpError(project,ERR_NUMBER, tok[i+2]);
     }
 
     // --- parse name of subcatch receiving snow plowed from current subcatch
@@ -109,7 +109,7 @@ int snow_readMeltParams(Project* project, char* tok[], int ntoks)
         if ( ntoks >= 9 )
         {
 			m = project_findObject(project, SUBCATCH, tok[8]);
-            if ( m < 0 ) return error_setInpError(ERR_NAME, tok[8]);
+	    if ( m < 0 ) return error_setInpError(project,ERR_NAME, tok[8]);
             x[6] = m;
         }
     }

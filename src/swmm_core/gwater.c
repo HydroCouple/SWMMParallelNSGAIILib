@@ -140,16 +140,16 @@ int gwater_readAquiferParams(Project* project, int j, char* tok[], int ntoks)
     char *id;
 
     // --- check that aquifer exists
-    if ( ntoks < 13 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 13 ) return error_setInpError(project,ERR_ITEMS, "");
 	id = project_findID(project, AQUIFER, tok[0]);
-    if ( id == NULL ) return error_setInpError(ERR_NAME, tok[0]);
+    if ( id == NULL ) return error_setInpError(project,ERR_NAME, tok[0]);
 
     // --- read remaining tokens as numbers
     for (i = 0; i < 11; i++) x[i] = 0.0;
     for (i = 1; i < 13; i++)
     {
         if ( ! getDouble(tok[i], &x[i-1]) )
-            return error_setInpError(ERR_NUMBER, tok[i]);
+            return error_setInpError(project,ERR_NUMBER, tok[i]);
     }
 
     // --- read upper evap pattern if present
@@ -157,7 +157,7 @@ int gwater_readAquiferParams(Project* project, int j, char* tok[], int ntoks)
     if ( ntoks > 13 )
     {
 		p = project_findObject(project, TIMEPATTERN, tok[13]);
-        if ( p < 0 ) return error_setInpError(ERR_NAME, tok[13]);
+	if ( p < 0 ) return error_setInpError(project,ERR_NAME, tok[13]);
     }
 
     // --- assign parameters to aquifer object
@@ -198,24 +198,24 @@ int gwater_readGroundwaterParams(Project* project, char* tok[], int ntoks)
     TGroundwater* gw;
 
     // --- check that specified subcatchment, aquifer & node exist
-    if ( ntoks < 3 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 3 ) return error_setInpError(project,ERR_ITEMS, "");
 	j = project_findObject(project, SUBCATCH, tok[0]);
-    if ( j < 0 ) return error_setInpError(ERR_NAME, tok[0]);
+    if ( j < 0 ) return error_setInpError(project,ERR_NAME, tok[0]);
 
     // --- check for enough tokens
-    if ( ntoks < 11 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 11 ) return error_setInpError(project,ERR_ITEMS, "");
 
     // --- check that specified aquifer and node exists
 	k = project_findObject(project, AQUIFER, tok[1]);
-    if ( k < 0 ) return error_setInpError(ERR_NAME, tok[1]);
+    if ( k < 0 ) return error_setInpError(project,ERR_NAME, tok[1]);
 	n = project_findObject(project, NODE, tok[2]);
-    if ( n < 0 ) return error_setInpError(ERR_NAME, tok[2]);
+    if ( n < 0 ) return error_setInpError(project,ERR_NAME, tok[2]);
 
     // -- read in the flow parameters
     for ( i = 0; i < 7; i++ )
     {
         if ( ! getDouble(tok[i+3], &x[i]) ) 
-            return error_setInpError(ERR_NUMBER, tok[i+3]);
+            return error_setInpError(project,ERR_NUMBER, tok[i+3]);
     }
 
     // --- read in optional depth parameters
@@ -226,7 +226,7 @@ int gwater_readGroundwaterParams(Project* project, char* tok[], int ntoks)
         if ( ntoks > m && *tok[m] != '*' )
         {    
             if (! getDouble(tok[m], &x[i]) ) 
-                return error_setInpError(ERR_NUMBER, tok[m]);
+                return error_setInpError(project,ERR_NUMBER, tok[m]);
             if ( i < 10 ) x[i] /= UCF(project,LENGTH);
         }
     }
@@ -235,7 +235,7 @@ int gwater_readGroundwaterParams(Project* project, char* tok[], int ntoks)
     if ( !project->Subcatch[j].groundwater )
     {
         gw = (TGroundwater *) malloc(sizeof(TGroundwater));
-        if ( !gw ) return error_setInpError(ERR_MEMORY, "");
+        if ( !gw ) return error_setInpError(project,ERR_MEMORY, "");
         project->Subcatch[j].groundwater = gw;
     }
     else gw = project->Subcatch[j].groundwater;
@@ -280,17 +280,17 @@ int gwater_readFlowExpression(Project* project, char* tok[], int ntoks)
     MathExpr* expr;
 
     // --- return if too few tokens
-    if ( ntoks < 3 ) return error_setInpError(ERR_ITEMS, "");
+    if ( ntoks < 3 ) return error_setInpError(project,ERR_ITEMS, "");
 
     // --- check that subcatchment exists
 	j = project_findObject(project, SUBCATCH, tok[0]);
-    if ( j < 0 ) return error_setInpError(ERR_NAME, tok[0]);
+    if ( j < 0 ) return error_setInpError(project,ERR_NAME, tok[0]);
 
     // --- check if expression is for lateral or deep project->GW flow
     k = 1;
     if ( match(tok[1], "LAT") ) k = 1;
     else if ( match(tok[1], "DEEP") ) k = 2;
-    else return error_setInpError(ERR_KEYWORD, tok[1]);
+    else return error_setInpError(project,ERR_KEYWORD, tok[1]);
 
     // --- concatenate remaining tokens into a single string
     strcpy(exprStr, tok[2]);
@@ -308,7 +308,7 @@ int gwater_readFlowExpression(Project* project, char* tok[], int ntoks)
     //     (getVariableIndex is the function that converts a project->GW
     //      variable's name into an index number) 
     expr = mathexpr_create(project,exprStr, getVariableIndex);
-    if ( expr == NULL ) return error_setInpError(ERR_TREATMENT_EXPR, "");
+    if ( expr == NULL ) return error_setInpError(project,ERR_TREATMENT_EXPR, "");
 
     // --- save expression tree with the subcatchment
     if ( k == 1 ) project->Subcatch[j].gwLatFlowExpr = expr;

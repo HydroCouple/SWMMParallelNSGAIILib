@@ -342,7 +342,7 @@ Project* swmm_open(char* f1, char* f2, char* f3)
 #endif
 #endif
 
-   Project *project = (Project*) calloc(1,sizeof(Project));
+   Project *project = calloc(1,sizeof(Project));
 
 #ifdef WINDOWS
    // --- begin exception handling here
@@ -370,7 +370,6 @@ Project* swmm_open(char* f1, char* f2, char* f3)
 
       // --- retrieve project data from input file
       project_readInput(project);
-
       if (project->ErrorCode)
          return project;
 
@@ -768,167 +767,167 @@ int   swmm_getErrorCode(Project* project)
    return project->ErrorCode;
 }
 
-//double  swmm_getDateTime(Project* project, char* beginorend)
-//{
-//   if (strcomp(beginorend, "begin"))
-//   {
-//      return project->StartDateTime;
-//   }
-//   else
-//   {
-//      return project->EndDateTime;
-//   }
-//}
+double  swmm_getDateTime(Project* project, char* beginorend)
+{
+   if (strcomp(beginorend, "begin"))
+   {
+      return project->StartDateTime;
+   }
+   else
+   {
+      return project->EndDateTime;
+   }
+}
 
-//void  datetime_decodeDateTime(DateTime date, int* y, int* m, int* d, int* h, int* mm, int* s)
-//{
-//   datetime_decodeDate(date, y, m, d);
-//   datetime_decodeTime(date, h, mm, s);
-//}
+void  datetime_decodeDateTime(DateTime date, int* y, int* m, int* d, int* h, int* mm, int* s)
+{
+   datetime_decodeDate(date, y, m, d);
+   datetime_decodeTime(date, h, mm, s);
+}
 
-//char* getErrorMsg(int i)
-//{
-//   return error_getMsg(i);
-//}
+char* getErrorMsg(int i)
+{
+   return error_getMsg(i);
+}
 
-//int  getObjectTypeCount(Project* project, int type)
-//{
-//   return project->Nobjects[type];
-//}
+int  getObjectTypeCount(Project* project, int type)
+{
+   return project->Nobjects[type];
+}
 
-//TNode* getNode(Project* project, int index)
-//{
-//   return &project->Node[index];
-//}
+TNode* getNode(Project* project, int index)
+{
+   return &project->Node[index];
+}
 
-//TNode* getNodeById(Project* project, char* id)
-//{
-//   int index = project_findObject(project, NODE, id);
-//   return &project->Node[index];
-//}
+TNode* getNodeById(Project* project, char* id)
+{
+   int index = project_findObject(project, NODE, id);
+   return &project->Node[index];
+}
 
-//void  setNode(Project* project, char* nodeId, char* propertyName, double value)
-//{
-//   int index = project_findObject(project, NODE, nodeId);
-//   TNode* n1 = &project->Node[index];
+void  setNode(Project* project, char* nodeId, char* propertyName, double value)
+{
+   int index = project_findObject(project, NODE, nodeId);
+   TNode* n1 = &project->Node[index];
 
-//   if (strcomp(propertyName, "invertElev"))
-//   {
-//      n1->invertElev = value;
-//   }
-//   else if (strcomp(propertyName, "crownElev"))
-//   {
-//      n1->crownElev = value;
-//   }
-//   else if (strcomp(propertyName, "initDepth"))
-//   {
-//      n1->initDepth = value;
-//   }
-//   else if (strcomp(propertyName, "surDepth"))
-//   {
-//      n1->surDepth = value;
-//   }
-//   else if (strcomp(propertyName, "newDepth"))
-//   {
-//      //to be applied later
-////      addNodeDepth(project, index, value);
-//   }
-//   else if (strcomp(propertyName, "pondedArea"))
-//   {
-//      n1->pondedArea = value;
-//   }
-//   else if (strcomp(propertyName, "inflow"))
-//   {
-//      n1->inflow = value;
-//   }
-//   else if (strcomp(propertyName, "outflow"))
-//   {
-//      n1->outflow = value;
-//   }
-//   else if (strcomp(propertyName, "newLatFlow"))
-//   {
-//      //to be applied later
-////      addNodeLateralInflow(project, index, value);
-//   }
+   if (strcomp(propertyName, "invertElev"))
+   {
+      n1->invertElev = value;
+   }
+   else if (strcomp(propertyName, "crownElev"))
+   {
+      n1->crownElev = value;
+   }
+   else if (strcomp(propertyName, "initDepth"))
+   {
+      n1->initDepth = value;
+   }
+   else if (strcomp(propertyName, "surDepth"))
+   {
+      n1->surDepth = value;
+   }
+   else if (strcomp(propertyName, "newDepth"))
+   {
+      //to be applied later
+      addNodeDepth(project, index, value);
+   }
+   else if (strcomp(propertyName, "pondedArea"))
+   {
+      n1->pondedArea = value;
+   }
+   else if (strcomp(propertyName, "inflow"))
+   {
+      n1->inflow = value;
+   }
+   else if (strcomp(propertyName, "outflow"))
+   {
+      n1->outflow = value;
+   }
+   else if (strcomp(propertyName, "newLatFlow"))
+   {
+      //to be applied later
+      addNodeLateralInflow(project, index, value);
+   }
 
-//}
+}
 
-//TLink*  getLink(Project* project, int index)
-//{
-//   return &project->Link[index];
-//}
+TLink*  getLink(Project* project, int index)
+{
+   return &project->Link[index];
+}
 
-//TLink*  getLinkById(Project* project, char* id)
-//{
-//   int index = project_findObject(project, LINK, id);
-//   return &project->Link[index];
-//}
+TLink*  getLinkById(Project* project, char* id)
+{
+   int index = project_findObject(project, LINK, id);
+   return &project->Link[index];
+}
 
-//void  setLink(Project* project, char* linkId, char* propertyName, double value)
-//{
+void  setLink(Project* project, char* linkId, char* propertyName, double value)
+{
 
-//   TLink* l = &project->Link[project_findObject(project, LINK, linkId)];
+   TLink* l = &project->Link[project_findObject(project, LINK, linkId)];
 
-//   if (strcomp(propertyName, "offset1"))
-//   {
-//      l->offset1 = value;
-//   }
-//   else if (strcomp(propertyName, "offset2"))
-//   {
-//      l->offset2 = value;
-//   }
-//   else if (strcomp(propertyName, "q0"))
-//   {
-//      l->q0 = value;
-//   }
-//   else if (strcomp(propertyName, "cLossInlet"))
-//   {
-//      l->cLossInlet = value;
-//   }
-//   else if (strcomp(propertyName, "cLossOutlet"))
-//   {
-//      l->cLossOutlet = value;
-//   }
-//   else if (strcomp(propertyName, "cLossAvg"))
-//   {
-//      l->cLossAvg = value;
-//   }
-//   else if (strcomp(propertyName, "seepRate"))
-//   {
-//      l->seepRate = value;
-//   }
-//   else if (strcomp(propertyName, "newFlow"))
-//   {
-//      l->newFlow = value;
-//   }
+   if (strcomp(propertyName, "offset1"))
+   {
+      l->offset1 = value;
+   }
+   else if (strcomp(propertyName, "offset2"))
+   {
+      l->offset2 = value;
+   }
+   else if (strcomp(propertyName, "q0"))
+   {
+      l->q0 = value;
+   }
+   else if (strcomp(propertyName, "cLossInlet"))
+   {
+      l->cLossInlet = value;
+   }
+   else if (strcomp(propertyName, "cLossOutlet"))
+   {
+      l->cLossOutlet = value;
+   }
+   else if (strcomp(propertyName, "cLossAvg"))
+   {
+      l->cLossAvg = value;
+   }
+   else if (strcomp(propertyName, "seepRate"))
+   {
+      l->seepRate = value;
+   }
+   else if (strcomp(propertyName, "newFlow"))
+   {
+      l->newFlow = value;
+   }
 
-//}
+}
 
-//TSubcatch* getSubcatch(Project* project, int index)
-//{
-//   return &project->Subcatch[index];
-//}
+TSubcatch* getSubcatch(Project* project, int index)
+{
+   return &project->Subcatch[index];
+}
 
-//TSubcatch* getSubcatchById(Project* project, char* id)
-//{
-//   int index = project_findObject(project, SUBCATCH, id);
-//   return &project->Subcatch[index];
-//}
+TSubcatch* getSubcatchById(Project* project, char* id)
+{
+   int index = project_findObject(project, SUBCATCH, id);
+   return &project->Subcatch[index];
+}
 
-//void  setSubcatch(Project* project, char* subCatchId, char* propertyName, double value)
-//{
-//   int index = project_findObject(project, SUBCATCH, subCatchId);
-//   TSubcatch* subcatch = &project->Subcatch[index];
+void  setSubcatch(Project* project, char* subCatchId, char* propertyName, double value)
+{
+   int index = project_findObject(project, SUBCATCH, subCatchId);
+   TSubcatch* subcatch = &project->Subcatch[index];
 
-//   if (strcomp(propertyName, "newRunoff"))
-//   {
-//      subcatch->newRunoff = value;
-//   }
-//   else if (strcomp(propertyName, "rainfall"))
-//   {
-////      addSubcatchRain(project, index, value);
-//   }
-//}
+   if (strcomp(propertyName, "newRunoff"))
+   {
+      subcatch->newRunoff = value;
+   }
+   else if (strcomp(propertyName, "rainfall"))
+   {
+      addSubcatchRain(project, index, value);
+   }
+}
 
 //=============================================================================
 

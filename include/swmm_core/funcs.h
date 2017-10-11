@@ -462,7 +462,7 @@ void    transect_validate(Project* project, int j);
 //-----------------------------------------------------------------------------
 //   Custom Shape Cross-Section Methods
 //-----------------------------------------------------------------------------
-int     shape_validate(TShape *shape, TTable *curve);
+int     shape_validate(Project *project, TShape *shape, TTable *curve);
 
 //-----------------------------------------------------------------------------
 //   Control Rule Methods
