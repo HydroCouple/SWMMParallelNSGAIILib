@@ -7,6 +7,7 @@
 # include <cmath>
 # include <cstring>
 # include <unordered_map>
+# include <stdlib.h>
 # include "swmmparallelnsgaii.h"
 # include "swmm5_iface.h"
 # include "datetime.h"
@@ -236,7 +237,8 @@ void SWMMParallelNSGAII(int gen, int indIndex, int nreal, double *xreal, int nbi
                         int **gene, int nobj, double *obj, int ncon, double *constr, const std::vector<std::string>& optionalArgs)
 {
 
-  std::string swmminputfile = optionalArgs[0];
+  swmmExecutablePath = optionalArgs[0];
+  std::string swmminputfile = optionalArgs[1];
   trim(swmminputfile);
 
   if(fileExists(swmminputfile))
@@ -263,8 +265,8 @@ void SWMMParallelNSGAII(int gen, int indIndex, int nreal, double *xreal, int nbi
 
     std::string allLines = mSWMMProjectFileLines;
 
-    std::vector<std::string> variables = splitText(optionalArgs[1], " ");
-    std::vector<std::string> varmultiplierS = splitText(optionalArgs[2], " ");
+    std::vector<std::string> variables = splitText(optionalArgs[2], " ");
+    std::vector<std::string> varmultiplierS = splitText(optionalArgs[3], " ");
 
     if(variables.size() != varmultiplierS.size())
     {
@@ -289,7 +291,7 @@ void SWMMParallelNSGAII(int gen, int indIndex, int nreal, double *xreal, int nbi
 
     if(found == true)
     {
-      std::string multiplierFile = optionalArgs[3];
+      std::string multiplierFile = optionalArgs[4];
       trim(multiplierFile);
 
       auto searchLoadedMultiplier = loadedMultiplierTables.find(multiplierFile);
@@ -363,37 +365,61 @@ void SWMMParallelNSGAII(int gen, int indIndex, int nreal, double *xreal, int nbi
     writeFileStream.flush();
     writeFileStream.close();
 
+    char *inpO = new char[outputfile.length() + 1] ;
+    std::strcpy (inpO, outputfile.c_str());
 
+#ifdef USE_EXTERNAL_EXECUTABLE
+    std::string execCommand = swmmExecutablePath + " " + newswmmfile + " " + reportfile + " " + outputfile;
+
+    int status = system(execCommand.c_str());
+    if(status)
+    {
+      printf("Was unable to issue command: %s");
+      abort();
+    }
+
+#else
     char *inpF = new char[newswmmfile.length() + 1] ;
     std::strcpy (inpF, newswmmfile.c_str());
 
-    char *inpO = new char[outputfile.length() + 1] ;
-    std::strcpy (inpO, outputfile.c_str());
 
     char *inpR = new char[reportfile.length() + 1] ;
     std::strcpy (inpR, reportfile.c_str());
 
     RunSwmmDll(inpF,inpR,inpO);
 
-    int error;
-    IFaceData *faceData = OpenSwmmOutFile(inpO ,&error);
-
     delete[] inpF;
-    delete[] inpO;
     delete[] inpR;
 
+#endif
 
-    for(size_t i = 4; i < optionalArgs.size(); i++)
+    IFaceData *faceData  =  nullptr;
+
+    if(fileExists(outputfile))
+    {
+      int error;
+      faceData = OpenSwmmOutFile(inpO ,&error);
+    }
+    else
+    {
+      printf("Output file was not found: %s", outputfile.c_str());
+      abort();
+    }
+
+    delete[] inpO;
+
+
+    for(size_t i = 5; i < optionalArgs.size(); i++)
     {
       std::vector<std::string> args = splitText(optionalArgs[i], " ");
 
       if(args[3] == "RMS")
       {
-        RMS(args, obj[i-4],faceData);
+        RMS(args, obj[i-5],faceData);
       }
       else if(args[3] == "VolError")
       {
-        VolumeError(args, obj[i-4],faceData);
+        VolumeError(args, obj[i-5],faceData);
       }
     }
 

@@ -81,7 +81,18 @@ int RunSwmmDll(char* inpFile, char* rptFile, char* outFile)
 
   // --- open a SWMM project
 
+#ifdef USE_OPENMP
+  omp_lock_t writelock;
+  omp_init_lock(&writelock);
+  omp_set_lock(&writelock);
+#endif
+
   currentProject = swmm_open(inpFile, rptFile, outFile);
+
+#ifdef USE_OPENMP
+  omp_unset_lock(&writelock);
+  omp_destroy_lock(&writelock);
+#endif
 
   if (!currentProject->ErrorCode)
   {

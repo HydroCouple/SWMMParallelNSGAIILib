@@ -33,6 +33,7 @@
 #include <time.h>
 
 #define USE_OPENMP
+#define USE_EXTERNAL_EXECUTABLE
 
 #ifdef __cplusplus
 extern "C" {

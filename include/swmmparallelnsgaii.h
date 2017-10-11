@@ -15,6 +15,7 @@ extern "C" {
 std::unordered_map<std::string, std::vector<std::pair<double, double>>> loadedTimeSeriesFiles;
 std::unordered_map<std::string, std::unordered_map<std::string, double>> loadedMultiplierTables;
 std::string mSWMMProjectFileLines;
+std::string swmmExecutablePath;
 
 static inline void ltrim(std::string &s) {
   s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {
