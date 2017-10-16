@@ -12,10 +12,24 @@
 extern "C" {
 #endif
 
-std::unordered_map<std::string, std::vector<std::pair<double, double>>> loadedTimeSeriesFiles;
-std::unordered_map<std::string, std::unordered_map<std::string, double>> loadedMultiplierTables;
-std::string mSWMMProjectFileLines;
-std::string swmmExecutablePath;
+//extern std::unordered_map<std::string, std::vector<std::pair<double, double>>> loadedTimeSeriesFiles;
+//std::unordered_map<std::string, std::unordered_map<std::string, double>> loadedMultiplierTables;
+//std::string mSWMMProjectFileLines;
+//std::string swmmExecutablePath;
+//extern std::vector<std::string> variables;
+//extern std::vector<int> variableMultiplierIndexes;
+//extern bool initialized;
+//extern bool multiplierFound;
+
+std::string swmmInputFile = "";
+std::string swmmProjectFileLines = "";
+std::string swmmExecutablePath = "";
+std::unordered_map<std::string, std::vector<std::pair<double, double>>> loadedTimeSeriesFiles = std::unordered_map<std::string, std::vector<std::pair<double, double>>>();
+std::unordered_map<std::string, std::unordered_map<std::string, double>> loadedMultiplierTables = std::unordered_map<std::string, std::unordered_map<std::string, double>>();
+std::vector<std::string> variables = std::vector<std::string>();
+std::vector<int> variableMultiplierIndexes = std::vector<int>();
+bool initialized = false;
+bool multiplierFound = false;
 
 static inline void ltrim(std::string &s) {
   s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {
@@ -68,15 +82,13 @@ std::vector<std::pair<double, double>> readTimeSeriesFile(const std::string & ti
 
 std::vector<std::pair<double, double>> readSWMMTimeSeries(IFaceData *faceData, int iType, int iIndex, int vIndex);
 
-double CalcRMS(const std::vector<std::pair<double, double>> & obs,
-               const std::vector<std::pair<double, double>> & sim);
-
 void RMS(const std::vector<std::string> &options, double & value, IFaceData *faceData);
 
-double CalcVolumeError(const std::vector<std::pair<double, double>> & obs,
-                       const std::vector<std::pair<double, double>> & sim);
+void RMS_EXACT(const std::vector<std::string> &options, double & value, IFaceData *faceData);
 
 void VolumeError(const std::vector<std::string> &options, double & value, IFaceData *faceData);
+
+void SWMMParallelNSGAII_EXPORT SWMMParallelNSGAIIInitialize(int procRank, const std::vector<std::string>& optionalArgs);
 
 void SWMMParallelNSGAII_EXPORT SWMMParallelNSGAII(int gen, int indIndex, int nreal, double *xreal, int nbin, double *xbin, int *nbits,
                                                   int **gene, int nobj, double *obj, int ncon, double *constr, const std::vector<std::string>& optionalArgs);

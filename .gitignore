@@ -39,3 +39,7 @@ CMakeLists.txt.user*
 
 input files
 *gen*ind*
+*.out
+*.R
+*.ini
+*.swmm.xlsx
