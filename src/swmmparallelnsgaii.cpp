@@ -1,4 +1,3 @@
-
 # include <vector>
 # include <string>
 # include <sys/stat.h>
@@ -9,16 +8,11 @@
 # include <unordered_map>
 # include <stdlib.h>
 # include "swmmparallelnsgaii.h"
-# include "swmm5_iface.h"
 # include "datetime.h"
-
 
 #ifdef USE_OPENMP
 #include <omp.h>
 #endif
-
-
-
 
 std::vector<std::string> splitText(const std::string &text, const std::string& delim)
 {
